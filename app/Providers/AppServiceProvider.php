@@ -2,15 +2,17 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\Schema;
+use App\Models\User;
+use App\Services\ColorPaletteService;
+use App\Services\TenantManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Mailer\Bridge\Mailtrap\Transport\MailtrapTransportFactory;
 use Symfony\Component\Mailer\Transport\Dsn;
-use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,8 +27,8 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
         Mail::extend('mailtrap', function ($config) {
-            $factory = new MailtrapTransportFactory();
-            
+            $factory = new MailtrapTransportFactory;
+
             $inboxId = config('services.mailtrap.inbox_id');
             $scheme = $inboxId ? 'mailtrap+sandbox' : 'mailtrap+api';
             $options = $inboxId ? ['inboxId' => $inboxId] : [];
@@ -48,13 +50,13 @@ class AppServiceProvider extends ServiceProvider
                     $view->with('currentUser', $currentUser);
                 }
                 if (Schema::hasTable('tenants')) {
-                    $currentTenant = \App\Services\TenantManager::getTenant();
+                    $currentTenant = TenantManager::getTenant();
                     $view->with('currentTenant', $currentTenant);
 
                     $tenantTheme = $currentTenant?->settings['theme'] ?? null;
                     $primaryColor = $tenantTheme['primary_color'] ?? '#4f46e5';
                     $accentColor = $tenantTheme['accent_color'] ?? '#6366f1';
-                    $brandShades = $tenantTheme['shades'] ?? \App\Services\ColorPaletteService::generateShades($primaryColor);
+                    $brandShades = $tenantTheme['shades'] ?? ColorPaletteService::generateShades($primaryColor);
 
                     $view->with('primaryColor', $primaryColor);
                     $view->with('accentColor', $accentColor);
@@ -65,7 +67,7 @@ class AppServiceProvider extends ServiceProvider
                 $view->with('currentTenant', null);
                 $view->with('primaryColor', '#4f46e5');
                 $view->with('accentColor', '#6366f1');
-                $view->with('brandShades', \App\Services\ColorPaletteService::generateShades('#4f46e5'));
+                $view->with('brandShades', ColorPaletteService::generateShades('#4f46e5'));
             }
         });
     }

@@ -2,7 +2,10 @@
 
 namespace Tests;
 
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
@@ -19,6 +22,8 @@ abstract class TestCase extends BaseTestCase
         $database = (string) $app['config']->get("database.connections.{$connection}.database");
         $prohibitedDatabases = [
             'saas_erp',
+            'saas_erp_central',
+            'saas_erp_production',
         ];
 
         if ($connection === 'mysql' && in_array(strtolower($database), $prohibitedDatabases, true)) {
@@ -34,10 +39,18 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        $this->withoutMiddleware([
+            PreventRequestForgery::class,
+            ThrottleRequests::class,
+            ThrottleRequestsWithRedis::class,
+        ]);
+
         $connection = (string) config('database.default');
         $database = (string) config("database.connections.{$connection}.database");
         $prohibitedDatabases = [
             'saas_erp',
+            'saas_erp_central',
+            'saas_erp_production',
         ];
 
         if ($connection === 'mysql' && in_array(strtolower($database), $prohibitedDatabases, true)) {

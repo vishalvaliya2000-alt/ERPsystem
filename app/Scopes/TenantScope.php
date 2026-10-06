@@ -2,10 +2,10 @@
 
 namespace App\Scopes;
 
+use App\Services\TenantManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
-use App\Services\TenantManager;
 
 class TenantScope implements Scope
 {

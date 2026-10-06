@@ -125,19 +125,19 @@ class BusinessDocument extends Model
 
         // 2. Sales Order / PO
         $salesOrder = $this->salesOrder;
-        if (!$salesOrder && $this->invoice?->salesOrder) {
+        if (! $salesOrder && $this->invoice?->salesOrder) {
             $salesOrder = $this->invoice->salesOrder;
         }
-        if (!$salesOrder && $this->shipment?->salesOrder) {
+        if (! $salesOrder && $this->shipment?->salesOrder) {
             $salesOrder = $this->shipment->salesOrder;
         }
 
         // 3. Commercial Shipment / LR
         $shipment = $this->shipment;
-        if (!$shipment && $this->invoice?->effective_shipment) {
+        if (! $shipment && $this->invoice?->effective_shipment) {
             $shipment = $this->invoice->effective_shipment;
         }
-        if (!$shipment && $salesOrder) {
+        if (! $shipment && $salesOrder) {
             $shipment = CommercialShipment::whereHas('items.salesOrderItem', function ($q) use ($salesOrder) {
                 $q->where('sales_order_id', $salesOrder->id);
             })->latest('shipment_date')->first();
@@ -145,10 +145,10 @@ class BusinessDocument extends Model
 
         // 4. Invoice
         $invoice = $this->invoice;
-        if (!$invoice && $salesOrder) {
+        if (! $invoice && $salesOrder) {
             $invoice = Invoice::where('sales_order_id', $salesOrder->id)->latest('invoice_date')->first();
         }
-        if (!$invoice && $shipment) {
+        if (! $invoice && $shipment) {
             $invoice = Invoice::where('commercial_shipment_id', $shipment->id)->latest('invoice_date')->first();
         }
 

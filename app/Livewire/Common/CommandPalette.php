@@ -2,17 +2,18 @@
 
 namespace App\Livewire\Common;
 
-use Livewire\Component;
-use Livewire\Attributes\On;
-use App\Models\SalesOrder;
-use App\Models\Invoice;
 use App\Models\CommercialShipment;
 use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\SalesOrder;
 use App\Services\TenantManager;
+use Livewire\Attributes\On;
+use Livewire\Component;
 
 class CommandPalette extends Component
 {
     public string $query = '';
+
     public bool $isOpen = false;
 
     protected $listeners = [

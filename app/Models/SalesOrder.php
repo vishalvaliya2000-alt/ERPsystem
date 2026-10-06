@@ -3,18 +3,20 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToTenant;
-
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesOrder extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
+        'firm_id',
         'order_number',
         'po_number',
         'po_date',
@@ -43,6 +45,7 @@ class SalesOrder extends Model
         'actual_dispatch_date' => 'datetime',
         'last_revised_at' => 'datetime',
         'revision_number' => 'integer',
+        'firm_id' => 'integer',
         'subtotal' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'advance_required' => 'decimal:2',
@@ -62,6 +65,11 @@ class SalesOrder extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    public function firm(): BelongsTo
+    {
+        return $this->belongsTo(Firm::class, 'firm_id');
     }
 
     public function items(): HasMany
@@ -177,6 +185,7 @@ class SalesOrder extends Model
             ->sum('amount_received');
 
         $unadjusted = (float) $this->advance_received - $alreadyAdjusted;
+
         return max(0, $unadjusted);
     }
 
@@ -185,8 +194,8 @@ class SalesOrder extends Model
      */
     public function recordAdvance(float $amount, string $paymentMode, ?string $refNumber = null, ?string $remarks = null, $receiptDate = null): PaymentReceipt
     {
-        $receiptNumber = 'ADV-' . date('Ymd') . '-' . rand(100, 999);
-        $date = $receiptDate ? \Carbon\Carbon::parse($receiptDate) : \Carbon\Carbon::now();
+        $receiptNumber = 'ADV-'.date('Ymd').'-'.rand(100, 999);
+        $date = $receiptDate ? Carbon::parse($receiptDate) : Carbon::now();
 
         $receipt = PaymentReceipt::create([
             'tenant_id' => $this->tenant_id,
@@ -225,7 +234,7 @@ class SalesOrder extends Model
             'tenant_id' => $this->tenant_id,
             'customer_id' => $this->customer_id,
             'activity_type' => 'PAYMENT',
-            'title' => "Advance Received (" . formatINR($amount) . ")",
+            'title' => 'Advance Received ('.formatINR($amount).')',
             'description' => "Received {$paymentMode} (Ref: {$refNumber}) against PO {$this->order_number}.",
             'occurred_at' => $date,
         ]);

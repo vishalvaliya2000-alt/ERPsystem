@@ -93,10 +93,18 @@
                 </svg>
             </div>
             <div class="text-center space-y-0.5">
-                <span class="text-xl sm:text-2xl font-black tracking-tight text-neutral-900 block font-display">ERPSaaS</span>
-                <span
-                    class="text-[10px] sm:text-[11px] font-bold tracking-widest text-neutral-400 uppercase block font-mono">Operations
-                    Platform</span>
+                <span class="text-xl sm:text-2xl font-black tracking-tight text-neutral-900 block font-display">
+                    {{ function_exists('tenant') && tenant('name') ? tenant('name') : config('app.name', 'ERPSaaS') }}
+                </span>
+                @if(function_exists('tenant') && tenant('id'))
+                    <span class="text-[10px] sm:text-[11px] font-bold tracking-widest text-emerald-600 uppercase block font-mono">
+                        Workspace: {{ tenant('id') }} • Online
+                    </span>
+                @else
+                    <span class="text-[10px] sm:text-[11px] font-bold tracking-widest text-neutral-400 uppercase block font-mono">
+                        Operations Platform
+                    </span>
+                @endif
             </div>
         </a>
     </div>

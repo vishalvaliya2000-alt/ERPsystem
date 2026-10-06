@@ -35,7 +35,7 @@ class TransporterTrackingService
 
         // 4. VRL Logistics
         if (str_contains($cleanTransporter, 'vrl')) {
-            return "https://www.vrlgroup.in/Tracking/TrackShipment";
+            return 'https://www.vrlgroup.in/Tracking/TrackShipment';
         }
 
         // 5. Gati
@@ -55,12 +55,12 @@ class TransporterTrackingService
 
         // 8. ARC (Associated Road Carriers)
         if (str_contains($cleanTransporter, 'arc') || str_contains($cleanTransporter, 'associated road')) {
-            return "https://www.arcindia.net/";
+            return 'https://www.arcindia.net/';
         }
 
         // 9. Avinash Cargo Private Limited (ACPL Cargo) - Verified official portal
         if (str_contains($cleanTransporter, 'avinash') || str_contains($cleanTransporter, 'acpl')) {
-            return "https://www.acplcargo.com/GCTRACKING.php";
+            return 'https://www.acplcargo.com/GCTRACKING.php';
         }
 
         // 10. Navata Road Transport
@@ -69,7 +69,8 @@ class TransporterTrackingService
         }
 
         // 11. Generic Smart Cargo Tracker (Direct Google Query with Transporter and LR)
-        $query = urlencode(($transporterName ? "{$transporterName} " : "") . "LR tracking {$cleanLr}");
+        $query = urlencode(($transporterName ? "{$transporterName} " : '')."LR tracking {$cleanLr}");
+
         return "https://www.google.com/search?q={$query}";
     }
 
@@ -96,7 +97,7 @@ class TransporterTrackingService
             'vehicle_no' => $shipment?->vehicle_number ?? null,
             'packages' => null,
             'weight' => null,
-            'current_status' => $shipment ? "Shipment status in ERP: {$shipment->status}" : "Tracking in transit",
+            'current_status' => $shipment ? "Shipment status in ERP: {$shipment->status}" : 'Tracking in transit',
             'stage' => ($shipment?->status === 'DELIVERED') ? 'DELIVERED' : 'IN_TRANSIT',
             'scans' => [],
             'external_url' => $externalUrl,
@@ -107,10 +108,11 @@ class TransporterTrackingService
         if (empty($cleanLr)) {
             $defaultResult['success'] = false;
             $defaultResult['current_status'] = 'No LR or Bilty number provided for this consignment';
+
             return $defaultResult;
         }
 
-        $cacheKey = 'transporter_live_track_' . md5($cleanTransporter . '_' . $cleanLr);
+        $cacheKey = 'transporter_live_track_'.md5($cleanTransporter.'_'.$cleanLr);
         if ($forceRefresh) {
             Cache::forget($cacheKey);
         } else {
@@ -118,6 +120,7 @@ class TransporterTrackingService
             if ($cached && is_array($cached)) {
                 $cached['shipment_id'] = $shipment?->id;
                 $cached['can_sync'] = ($shipment !== null && $shipment->status !== 'DELIVERED');
+
                 return $cached;
             }
         }
@@ -138,15 +141,15 @@ class TransporterTrackingService
                     CURLOPT_HTTPHEADER => [
                         'X-Requested-With: XMLHttpRequest',
                         'Origin: https://vtransgroup.com',
-                        'Referer: https://vtransgroup.com/tools/track-trace/'
+                        'Referer: https://vtransgroup.com/tools/track-trace/',
                     ],
-                    CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
+                    CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
                 ]);
                 $html = curl_exec($ch);
                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
 
-                if ($httpCode === 200 && !empty($html) && strlen($html) > 500) {
+                if ($httpCode === 200 && ! empty($html) && strlen($html) > 500) {
                     $liveData = $defaultResult;
                     $liveData['mode'] = 'LIVE';
 
@@ -195,6 +198,7 @@ class TransporterTrackingService
 
                     $ttl = ($liveData['stage'] === 'DELIVERED') ? 86400 : 180;
                     Cache::put($cacheKey, $liveData, $ttl);
+
                     return $liveData;
                 }
             } catch (\Throwable $e) {
@@ -213,6 +217,7 @@ class TransporterTrackingService
 
                 $ttl = ($liveData['stage'] === 'DELIVERED') ? 86400 : 180;
                 Cache::put($cacheKey, $liveData, $ttl);
+
                 return $liveData;
             }
         }
@@ -240,7 +245,7 @@ class TransporterTrackingService
                 CURLOPT_HTTPHEADER => [
                     'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                     'Accept-Language: en-US,en;q=0.9',
-                ]
+                ],
             ]);
             $raw = curl_exec($ch);
             $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
@@ -265,7 +270,7 @@ class TransporterTrackingService
             preg_match('/id="request_token"\s*value="([^"]+)"/', $body, $m2);
             $requestToken = $m2[1] ?? null;
 
-            if (!$csrfToken || empty($cookieHeader)) {
+            if (! $csrfToken || empty($cookieHeader)) {
                 return null;
             }
 
@@ -290,16 +295,16 @@ class TransporterTrackingService
                     'Accept: */*',
                     'Accept-Language: en-US,en;q=0.9',
                     'Content-Type: application/x-www-form-urlencoded; charset=UTF-8',
-                    'Cookie: ' . $cookieHeader,
+                    'Cookie: '.$cookieHeader,
                     'Origin: https://www.acplcargo.com',
                     'Referer: https://www.acplcargo.com/GCTRACKING.php',
                     'Sec-Fetch-Dest: empty',
                     'Sec-Fetch-Mode: cors',
                     'Sec-Fetch-Site: same-origin',
-                    'X-CSRF-Token: ' . $csrfToken,
-                    'X-ACPL-Client-Context: ' . base64_encode('www.acplcargo.com|https://www.acplcargo.com/GCTRACKING.php'),
+                    'X-CSRF-Token: '.$csrfToken,
+                    'X-ACPL-Client-Context: '.base64_encode('www.acplcargo.com|https://www.acplcargo.com/GCTRACKING.php'),
                     'X-Requested-With: XMLHttpRequest',
-                ]
+                ],
             ]);
             $html = curl_exec($ch2);
             $code2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
@@ -323,13 +328,13 @@ class TransporterTrackingService
                 'sender_address' => null,
                 'receiver_address' => null,
                 'stage' => 'IN_TRANSIT',
-                'scans' => []
+                'scans' => [],
             ];
 
             // 1. BOOKING MASTER TABLE
             if (preg_match('/BOOKING MASTER.*?<tbody>\s*<tr>(.*?)<\/tr>/is', $html, $m)) {
                 preg_match_all('/<td>(.*?)<\/td>/is', $m[1], $tds);
-                $vals = array_map(fn($v) => trim(strip_tags($v)), $tds[1] ?? []);
+                $vals = array_map(fn ($v) => trim(strip_tags($v)), $tds[1] ?? []);
                 if (count($vals) >= 9) {
                     $result['origin'] = $vals[2] ?: null;
                     $result['destination'] = $vals[3] ?: null;
@@ -344,13 +349,13 @@ class TransporterTrackingService
             // 2. BOOKING DETAILS TABLE
             if (preg_match('/BOOKING DETAILS.*?<tbody>\s*<tr>(.*?)<\/tr>/is', $html, $m)) {
                 preg_match_all('/<td>(.*?)<\/td>/is', $m[1], $tds);
-                $vals = array_map(fn($v) => trim(strip_tags($v)), $tds[1] ?? []);
+                $vals = array_map(fn ($v) => trim(strip_tags($v)), $tds[1] ?? []);
                 if (count($vals) >= 10) {
                     $result['booking_date'] = $vals[1] ?: null;
                     $result['packages'] = $vals[2] ?: null;
                     $result['sender_address'] = $vals[4] ?: null;
                     $result['receiver_address'] = $vals[6] ?: null;
-                    $result['weight'] = $vals[8] ? ($vals[8] . ' kg') : null;
+                    $result['weight'] = $vals[8] ? ($vals[8].' kg') : null;
                     $result['delivered_date'] = $vals[9] ?: null;
                 }
             }
@@ -363,7 +368,7 @@ class TransporterTrackingService
                             'location' => trim(strip_tags($r[2])),
                             'activity' => trim(strip_tags($r[3])),
                             'date' => trim(strip_tags($r[1])),
-                            'time' => ''
+                            'time' => '',
                         ];
                     }
                 }
@@ -371,7 +376,7 @@ class TransporterTrackingService
 
             // 4. Stage determination
             $statusStr = strtolower($result['current_status'] ?? '');
-            if (str_contains($statusStr, 'deliver') || !empty($result['delivered_date'])) {
+            if (str_contains($statusStr, 'deliver') || ! empty($result['delivered_date'])) {
                 $result['stage'] = 'DELIVERED';
             } elseif (str_contains($statusStr, 'out for') || str_contains($statusStr, 'reached') || str_contains($statusStr, 'arrived')) {
                 $result['stage'] = 'ARRIVED';

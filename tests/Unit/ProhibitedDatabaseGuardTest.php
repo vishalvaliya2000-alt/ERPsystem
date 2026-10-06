@@ -6,7 +6,6 @@ use Tests\TestCase;
 
 class ProhibitedDatabaseGuardTest extends TestCase
 {
-
     public function test_safety_guard_blocks_saas_erp(): void
     {
         $this->expectException(\RuntimeException::class);

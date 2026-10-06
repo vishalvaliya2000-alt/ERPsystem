@@ -1,12 +1,9 @@
 <?php
 
-use App\Models\CommercialShipment;
-use App\Models\CommercialShipmentItem;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\SalesOrder;
-use App\Models\SalesOrderItem;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TenantManager;
@@ -36,18 +33,18 @@ beforeEach(function () {
 
     $this->customer15Days = Customer::create([
         'tenant_id' => $this->tenant->id,
-        'customer_code' => 'CUST-15D-' . rand(100, 999),
+        'customer_code' => 'CUST-15D-'.rand(100, 999),
         'company_name' => 'Test 15 Days Credit Customer',
         'city' => 'Surat',
         'state' => 'Gujarat',
-        'gst_number' => '24AAACT' . rand(1000, 9999) . 'Z1Z1',
+        'gst_number' => '24AAACT'.rand(1000, 9999).'Z1Z1',
         'payment_terms_days' => 15,
         'stage' => 'ACTIVE',
     ]);
 
     $this->product = Product::create([
         'tenant_id' => $this->tenant->id,
-        'product_code' => 'PRD-TEST-' . rand(100, 999),
+        'product_code' => 'PRD-TEST-'.rand(100, 999),
         'product_name' => 'Garlic Powder Fine Mesh',
         'granulation' => 'Fine Powder',
         'standard_rate' => 160,
@@ -75,7 +72,7 @@ test('storing invoice uses customer payment terms days when due_date is empty', 
 
     $response = $this->actingAs($this->user)->post(route('invoices.store'), [
         'customer_id' => $this->customer15Days->id,
-        'invoice_number' => 'INV-TEST-TERM-' . rand(1000, 9999),
+        'invoice_number' => 'INV-TEST-TERM-'.rand(1000, 9999),
         'invoice_date' => $invDate,
         'due_date' => '', // omitted to test fallback
         'material_subtotal' => 50000,
@@ -95,7 +92,7 @@ test('storing invoice honors explicit auto-calculated due_date from reactive mod
 
     $response = $this->actingAs($this->user)->post(route('invoices.store'), [
         'customer_id' => $this->customer15Days->id,
-        'invoice_number' => 'INV-TEST-CUSTOM-' . rand(1000, 9999),
+        'invoice_number' => 'INV-TEST-CUSTOM-'.rand(1000, 9999),
         'invoice_date' => $invDate,
         'due_date' => $customDueDate,
         'material_subtotal' => 60000,
@@ -113,7 +110,7 @@ test('storing invoice 100% settled by advance aligns due date with invoice date 
     // Create sales order with advance
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
-        'order_number' => 'PO-ADV-' . rand(1000, 9999),
+        'order_number' => 'PO-ADV-'.rand(1000, 9999),
         'customer_id' => $this->customer15Days->id,
         'order_date' => Carbon::today(),
         'subtotal' => 10000,
@@ -131,7 +128,7 @@ test('storing invoice 100% settled by advance aligns due date with invoice date 
     $response = $this->actingAs($this->user)->post(route('invoices.store'), [
         'customer_id' => $this->customer15Days->id,
         'sales_order_id' => $order->id,
-        'invoice_number' => 'INV-TEST-FULLADV-' . rand(1000, 9999),
+        'invoice_number' => 'INV-TEST-FULLADV-'.rand(1000, 9999),
         'invoice_date' => $invDate,
         'due_date' => '', // omitted to test 100% advance alignment
         'material_subtotal' => 10000,

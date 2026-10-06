@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductCustomField;
+use App\Models\ProductDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -234,11 +236,14 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        $product = Product::with(['category', 'documents.createdByUser', 'shares'])->findOrFail($id);
+        $product = Product::with(['category', 'documents.createdByUser', 'shares', 'priceSlabs', 'customValues.customField'])->findOrFail($id);
         $categories = ProductCategory::all();
-        $photos = $product->documents->where('document_type', \App\Models\ProductDocument::TYPE_PHOTO)->sortBy('sort_order')->values();
-        $documents = $product->documents->where('document_type', '!=', \App\Models\ProductDocument::TYPE_PHOTO)->sortBy(fn($d) => [$d->document_type, !$d->is_latest, -$d->id])->values();
-        return view('products.show', compact('product', 'categories', 'photos', 'documents'));
+        $photos = $product->documents->where('document_type', ProductDocument::TYPE_PHOTO)->sortBy('sort_order')->values();
+        $documents = $product->documents->where('document_type', '!=', ProductDocument::TYPE_PHOTO)->sortBy(fn ($d) => [$d->document_type, ! $d->is_latest, -$d->id])->values();
+        $customFields = ProductCustomField::all();
+        $priceSlabs = $product->priceSlabs;
+
+        return view('products.show', compact('product', 'categories', 'photos', 'documents', 'customFields', 'priceSlabs'));
     }
 
     /**
@@ -353,11 +358,12 @@ class ProductController extends Controller
             return back()->with('success', "✓ Product '{$product->product_name}' saved successfully with SKU {$code}!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create product: ' . $e->getMessage(), [
+            Log::error('Failed to create product: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to create product: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to create product: '.$e->getMessage());
         }
     }
 
@@ -413,11 +419,12 @@ class ProductController extends Controller
             return back()->with('success', "✓ Product '{$product->product_name}' updated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update product #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update product #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update product: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update product: '.$e->getMessage());
         }
     }
 
@@ -438,10 +445,11 @@ class ProductController extends Controller
             return back()->with('success', "✓ Product '{$name}' deleted successfully.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete product #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete product #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete product: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete product: '.$e->getMessage());
         }
     }
 

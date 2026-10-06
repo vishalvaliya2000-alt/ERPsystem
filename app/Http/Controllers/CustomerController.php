@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Customer;
 use App\Models\Contact;
-use App\Models\ActivityLog;
+use App\Models\Customer;
 use App\Models\Product;
+use App\Services\TenantManager;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -18,7 +18,7 @@ class CustomerController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        $tenantId = \App\Services\TenantManager::getTenantId();
+        $tenantId = TenantManager::getTenantId();
         $nextCustomerCode = Customer::generateNextCode($tenantId);
 
         return view('customers.index', compact('customers', 'nextCustomerCode'));
@@ -34,14 +34,14 @@ class CustomerController extends Controller
                     'shipments.items.salesOrderItem.product',
                     'shipments.lrDocument.activeVersion',
                     'poDocument.activeVersion',
-                    'documents.activeVersion'
+                    'documents.activeVersion',
                 ])->orderByDesc('order_date');
             },
             'invoices' => function ($q) {
                 $q->with([
                     'receipts',
                     'invoiceDocument.activeVersion',
-                    'documents.activeVersion'
+                    'documents.activeVersion',
                 ])->orderByDesc('invoice_date');
             },
             'quotations.items.product',
@@ -49,8 +49,8 @@ class CustomerController extends Controller
             'documents' => function ($q) {
                 $q->with(['activeVersion', 'salesOrder', 'commercialShipment', 'invoice'])->orderByDesc('document_date');
             },
-            'followups' => fn($q) => $q->orderBy('due_date'),
-            'activities' => fn($q) => $q->orderByDesc('occurred_at'),
+            'followups' => fn ($q) => $q->orderBy('due_date'),
+            'activities' => fn ($q) => $q->orderByDesc('occurred_at'),
             'aiInsights',
         ])->findOrFail($id);
 
@@ -81,16 +81,16 @@ class CustomerController extends Controller
             return back()->withInput()->withErrors(['company_name' => 'Legal Name of Business is required.']);
         }
 
-        $tradeName = !empty($validated['trade_name']) ? trim($validated['trade_name']) : null;
+        $tradeName = ! empty($validated['trade_name']) ? trim($validated['trade_name']) : null;
 
         if (empty($request->confirm_duplicate)) {
             $duplicateQuery = Customer::where('company_name', $legalName);
-            
-            if (!empty($tradeName)) {
+
+            if (! empty($tradeName)) {
                 $duplicateQuery->orWhere('trade_name', $tradeName);
             }
 
-            if (!empty($validated['gst_number'])) {
+            if (! empty($validated['gst_number'])) {
                 $duplicateQuery->orWhere('gst_number', $validated['gst_number']);
             }
 
@@ -102,9 +102,9 @@ class CustomerController extends Controller
             }
         }
 
-        $tenantId = \App\Services\TenantManager::getTenantId();
+        $tenantId = TenantManager::getTenantId();
 
-        if (!empty($validated['customer_code'])) {
+        if (! empty($validated['customer_code'])) {
             $code = trim($validated['customer_code']);
             if (Customer::where('customer_code', $code)->exists()) {
                 return back()
@@ -133,7 +133,7 @@ class CustomerController extends Controller
                 'stage' => 'ACTIVE',
             ]);
 
-            if (!empty($validated['primary_contact_person'])) {
+            if (! empty($validated['primary_contact_person'])) {
                 Contact::create([
                     'customer_id' => $customer->id,
                     'name' => $validated['primary_contact_person'],
@@ -148,11 +148,12 @@ class CustomerController extends Controller
             return redirect()->route('customers.show', $customer->id)->with('success', "✓ Customer '{$customer->company_name}' created successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create customer: ' . $e->getMessage(), [
+            Log::error('Failed to create customer: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->except(['password']),
             ]);
-            return back()->withInput()->with('error', 'Failed to create customer: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to create customer: '.$e->getMessage());
         }
     }
 
@@ -174,7 +175,7 @@ class CustomerController extends Controller
             'stage' => 'nullable|string|max:50',
         ]);
 
-        if (!empty($validated['legal_name'])) {
+        if (! empty($validated['legal_name'])) {
             $validated['company_name'] = $validated['legal_name'];
             unset($validated['legal_name']);
         }
@@ -187,11 +188,12 @@ class CustomerController extends Controller
             return back()->with('success', "✓ Customer '{$customer->company_name}' updated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update customer #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update customer #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update customer: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update customer: '.$e->getMessage());
         }
     }
 
@@ -216,10 +218,11 @@ class CustomerController extends Controller
             return redirect()->route('customers.index')->with('success', "✓ Customer '{$name}' deleted successfully.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete customer #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete customer #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete customer: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete customer: '.$e->getMessage());
         }
     }
 }

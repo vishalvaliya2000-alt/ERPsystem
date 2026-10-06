@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Facade;
 use Tests\TestCase;
 
 /*
@@ -19,21 +20,21 @@ pest()->extend(TestCase::class)
     ->in('Feature');
 
 pest()->beforeEach(function () {
-    if (! class_exists(\Illuminate\Support\Facades\Facade::class)) {
+    if (! class_exists(Facade::class)) {
         return;
     }
 
-    $app = \Illuminate\Support\Facades\Facade::getFacadeApplication();
+    $app = Facade::getFacadeApplication();
     if (! $app || ! $app->bound('config')) {
         return;
     }
 
     $connection = (string) config('database.default');
     $database = (string) config("database.connections.{$connection}.database");
-    $prohibitedDatabases = ['saas_erp'];
+    $prohibitedDatabases = ['saas_erp', 'saas_erp_central', 'saas_erp_production'];
 
     if ($connection === 'mysql' && in_array(strtolower($database), $prohibitedDatabases, true)) {
-        throw new \RuntimeException(
+        throw new RuntimeException(
             "SAFETY ERROR: Tests are attempting to use a production ERP database [Connection: {$connection}, Database: {$database}]. Tests must only run against saas_erp_test or an isolated test database."
         );
     }
@@ -53,4 +54,3 @@ pest()->beforeEach(function () {
 expect()->extend('toBeOne', function () {
     return $this->toBe(1);
 });
-

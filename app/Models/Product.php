@@ -6,10 +6,12 @@ use App\Models\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
@@ -97,7 +99,7 @@ class Product extends Model
             ->orderByDesc('created_at');
     }
 
-    public function primaryPhoto(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function primaryPhoto(): HasOne
     {
         return $this->hasOne(ProductDocument::class, 'product_id')
             ->where('document_type', ProductDocument::TYPE_PHOTO)
@@ -107,6 +109,21 @@ class Product extends Model
     public function shares(): HasMany
     {
         return $this->hasMany(ProductDocumentShare::class, 'product_id')->orderByDesc('created_at');
+    }
+
+    public function priceSlabs(): HasMany
+    {
+        return $this->hasMany(ProductPriceSlab::class, 'product_id')->orderBy('min_quantity');
+    }
+
+    public function partyOverrides(): HasMany
+    {
+        return $this->hasMany(PartyPriceOverride::class, 'product_id');
+    }
+
+    public function customValues(): HasMany
+    {
+        return $this->hasMany(ProductCustomValue::class, 'product_id');
     }
 
     public function getDocumentBadgeSummaryAttribute(): array
@@ -120,7 +137,7 @@ class Product extends Model
 
         // Check if any COA is expired
         $coaExpired = $docs->where('document_type', ProductDocument::TYPE_COA)
-            ->filter(fn($d) => $d->is_expired)
+            ->filter(fn ($d) => $d->is_expired)
             ->isNotEmpty();
 
         return [

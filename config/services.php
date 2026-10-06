@@ -34,7 +34,7 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-    
+
     'mailtrap' => [
         'secret' => env('MAIL_API_TOKEN'),
         'inbox_id' => env('MAILTRAP_INBOX_ID'),

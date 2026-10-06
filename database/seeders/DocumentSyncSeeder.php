@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\BusinessDocument;
 use App\Models\CommercialShipment;
-use App\Models\Customer;
 use App\Models\DocumentVersion;
 use App\Models\Invoice;
 use App\Models\SalesOrder;
@@ -78,7 +77,7 @@ class DocumentSyncSeeder extends Seeder
                 continue;
             }
 
-            $poNum = $o->po_number ?: ('PO-' . strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $o->customer?->company_name ?? 'CUST'), 0, 3)) . '-' . rand(100, 999));
+            $poNum = $o->po_number ?: ('PO-'.strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $o->customer?->company_name ?? 'CUST'), 0, 3)).'-'.rand(100, 999));
             $fileName = "PO_{$poNum}.pdf";
 
             $doc = BusinessDocument::create([
@@ -93,7 +92,7 @@ class DocumentSyncSeeder extends Seeder
                 'tax_amount' => $o->tax_amount,
                 'currency' => 'INR',
                 'payment_terms' => $o->payment_terms ?: '30 Days Credit',
-                'delivery_location' => $o->customer ? ($o->customer->city . ', ' . $o->customer->state) : 'Factory Godown',
+                'delivery_location' => $o->customer ? ($o->customer->city.', '.$o->customer->state) : 'Factory Godown',
                 'status' => 'VERIFIED',
                 'notes' => "Customer Purchase Order linked to contract {$o->order_number}.",
                 'current_version' => 1,
@@ -140,7 +139,7 @@ class DocumentSyncSeeder extends Seeder
                 'tax_amount' => $inv->gst_amount,
                 'currency' => 'INR',
                 'payment_terms' => '30 Days Credit',
-                'delivery_location' => $inv->customer ? ($inv->customer->city . ', ' . $inv->customer->state) : null,
+                'delivery_location' => $inv->customer ? ($inv->customer->city.', '.$inv->customer->state) : null,
                 'status' => $inv->status === 'PAID' ? 'PAID' : ($inv->status === 'OVERDUE' ? 'OVERDUE' : 'VERIFIED'),
                 'notes' => "Tax Invoice issued against order {$inv->display_po_numbers}.",
                 'current_version' => 1,

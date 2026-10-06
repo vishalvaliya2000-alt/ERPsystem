@@ -3,17 +3,18 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToTenant;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Quotation extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
+        'firm_id',
         'quotation_number',
         'customer_id',
         'lead_id',
@@ -37,6 +38,7 @@ class Quotation extends Model
     protected $casts = [
         'quotation_date' => 'datetime',
         'valid_until' => 'datetime',
+        'firm_id' => 'integer',
         'subtotal' => 'decimal:2',
         'tax_rate' => 'decimal:2',
         'tax_amount' => 'decimal:2',
@@ -46,6 +48,11 @@ class Quotation extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    public function firm(): BelongsTo
+    {
+        return $this->belongsTo(Firm::class, 'firm_id');
     }
 
     public function lead(): BelongsTo

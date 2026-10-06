@@ -8,10 +8,15 @@
     <title>@hasSection('title')@yield('title') — {{ $currentTenant?->name ?? config('app.name', 'ERPSaaS') }}@else{{
         $title ?? ($currentTenant?->name ?? config('app.name', 'ERPSaaS')) }} — AI Operations & ERP @endif </title>
 
-    <!-- Favicon -->
+    <!-- Favicon & PWA Manifest -->
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link rel="alternate icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#091315">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ERPSaaS">
 
     <!-- Google Fonts: Outfit & Plus Jakarta Sans & IBM Plex Mono (ERPSaaS Design System) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -221,6 +226,31 @@
             'icon' => 'transports'
         ],
         [
+            'name' => 'Accounting',
+            'route' => 'accounting.chart',
+            'icon' => 'accounting'
+        ],
+        [
+            'name' => 'Expenses & ITC',
+            'route' => 'expenses.index',
+            'icon' => 'expenses'
+        ],
+        [
+            'name' => 'Fixed Assets',
+            'route' => 'fixed-assets.index',
+            'icon' => 'assets'
+        ],
+        [
+            'name' => 'Service Reminders',
+            'route' => 'service-reminders.index',
+            'icon' => 'reminders'
+        ],
+        [
+            'name' => 'Reports & Analytics',
+            'route' => 'reports.index',
+            'icon' => 'reports'
+        ],
+        [
             'name' => 'Settings',
             'route' => 'organization.settings',
             'icon' => 'settings'
@@ -315,6 +345,26 @@
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        @elseif($item['icon'] === 'accounting')
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                        @elseif($item['icon'] === 'expenses')
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                        </svg>
+                        @elseif($item['icon'] === 'assets')
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        @elseif($item['icon'] === 'reminders')
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        @elseif($item['icon'] === 'reports')
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                         @elseif($item['icon'] === 'settings')
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -422,6 +472,16 @@
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                             @elseif($item['icon'] === 'transports')
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                            @elseif($item['icon'] === 'accounting')
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                            @elseif($item['icon'] === 'expenses')
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>
+                            @elseif($item['icon'] === 'assets')
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                            @elseif($item['icon'] === 'reminders')
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                            @elseif($item['icon'] === 'reports')
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                             @elseif($item['icon'] === 'settings')
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             @endif
@@ -456,6 +516,9 @@
 
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col min-w-0 bg-[#F5F6F8] overflow-hidden">
+        <!-- PWA Offline & Draft Sync Banner -->
+        <div id="pwa-connection-banner" class="hidden"></div>
+
         <!-- Top Navbar (Breadcrumb, Search Ctrl+K, + Create Dropdown, Notifications, AI Copilot, User Profile) -->
         <header
             class="h-16 bg-white/90 backdrop-blur-md border-b border-neutral-200/80 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
@@ -644,6 +707,68 @@
                     </svg>
                 </a>
 
+                <!-- Company & Firm Switcher (Multi-Company/Multi-Firm Context) -->
+                @if(isset($availableCompanies) && $availableCompanies->isNotEmpty())
+                    <div class="relative" x-data="{ isContextOpen: false }">
+                        <button @click="isContextOpen = !isContextOpen"
+                            title="Active Operating Company & Firm Unit"
+                            class="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-full hover:bg-neutral-100 transition-all cursor-pointer text-left border border-neutral-200/90 bg-white shadow-2xs group">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                            <div class="max-w-[110px] sm:max-w-[180px] truncate text-left">
+                                <p class="text-xs font-black text-neutral-900 leading-none truncate">
+                                    {{ $currentFirm?->firm_name ?? $currentCompany?->legal_name ?? 'Select Unit' }}
+                                </p>
+                                @if($currentFirm?->gstin)
+                                    <p class="text-[9px] font-mono text-neutral-400 leading-none truncate mt-0.5">
+                                        GST: {{ $currentFirm->gstin }}
+                                    </p>
+                                @endif
+                            </div>
+                            <span class="text-neutral-400 text-[10px] group-hover:text-neutral-700 transition-colors">▾</span>
+                        </button>
+
+                        <!-- Switcher Dropdown -->
+                        <div x-show="isContextOpen" @click.outside="isContextOpen = false" x-cloak
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                            class="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-white rounded-3xl shadow-xl border border-neutral-200/80 p-3 z-50 text-xs space-y-2">
+                            <div class="px-2 py-1 border-b border-neutral-100 flex items-center justify-between">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-neutral-400 font-mono">Operating Units & Firms</span>
+                                <a href="{{ route('organization.companies.index') }}" class="text-[10px] font-bold text-indigo-600 hover:underline">Manage</a>
+                            </div>
+
+                            <div class="max-h-60 overflow-y-auto space-y-2 divide-y divide-neutral-100 touch-scroll">
+                                @foreach($availableCompanies as $comp)
+                                    <div class="pt-1.5 first:pt-0 space-y-1">
+                                        <p class="text-[10px] font-black text-neutral-500 uppercase tracking-wider font-mono px-2">{{ $comp->legal_name }}</p>
+                                        @foreach($comp->firms as $f)
+                                            @php
+                                                $isSelected = $currentFirm && (int)$currentFirm->id === (int)$f->id;
+                                            @endphp
+                                            <form action="{{ route('organization.switch-context') }}" method="POST">
+                                                @csrf
+                                                <input type="hidden" name="firm_id" value="{{ $f->id }}">
+                                                <button type="submit"
+                                                    class="w-full text-left p-2 rounded-xl flex items-center justify-between transition-colors cursor-pointer {{ $isSelected ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200' : 'hover:bg-neutral-50 text-neutral-700' }}">
+                                                    <div class="min-w-0 pr-2">
+                                                        <p class="text-xs truncate font-bold">{{ $f->firm_name }}</p>
+                                                        <p class="text-[10px] text-neutral-400 font-mono truncate">
+                                                            {{ $f->gstin ?: 'No GSTIN' }} · {{ $f->state }}
+                                                        </p>
+                                                    </div>
+                                                    @if($isSelected)
+                                                        <span class="text-emerald-600 font-black text-xs shrink-0">✓</span>
+                                                    @endif
+                                                </button>
+                                            </form>
+                                        @endforeach
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <!-- User Profile & Dropdown -->
                 <div class="relative pl-1 sm:border-l sm:border-neutral-200" x-data="{ isProfileOpen: false }">
                     <button @click="isProfileOpen = !isProfileOpen"
@@ -681,9 +806,29 @@
                             <span>🏢</span> Company Profile & Settings
                         </a>
 
+                        <a href="{{ route('organization.companies.index') }}"
+                            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-full text-neutral-700 hover:bg-neutral-100 font-bold transition-colors">
+                            <span>🏭</span> Companies & Operating Firms
+                        </a>
+
                         <a href="{{ route('organization.team') }}"
                             class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-full text-neutral-700 hover:bg-neutral-100 font-bold transition-colors">
                             <span>👥</span> Team & Staff Access
+                        </a>
+
+                        <a href="{{ route('organization.departments') }}"
+                            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-full text-neutral-700 hover:bg-neutral-100 font-bold transition-colors">
+                            <span>🏛️</span> 4 Fixed Departments
+                        </a>
+
+                        <a href="{{ route('organization.audit-logs') }}"
+                            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-full text-neutral-700 hover:bg-neutral-100 font-bold transition-colors">
+                            <span>🛡️</span> Security Audit Logs
+                        </a>
+
+                        <a href="{{ route('recycle-bin.index') }}"
+                            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-full text-neutral-700 hover:bg-neutral-100 font-bold transition-colors">
+                            <span>🗑️</span> Recycle Bin & Recovery
                         </a>
 
                         <a href="{{ route('profile') }}"
@@ -1727,6 +1872,7 @@
     </div>
     @livewireScripts
     @stack('scripts')
+    <script src="{{ asset('js/pwa-offline-sync.js') }}"></script>
 </body>
 
 </html>

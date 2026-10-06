@@ -14,9 +14,13 @@ class ProductDocument extends Model
     use BelongsToTenant;
 
     public const TYPE_PHOTO = 'PHOTO';
+
     public const TYPE_COA = 'COA';
+
     public const TYPE_SPECIFICATION = 'SPECIFICATION';
+
     public const TYPE_MSDS = 'MSDS';
+
     public const TYPE_OTHER = 'OTHER';
 
     public static array $types = [
@@ -90,12 +94,13 @@ class ProductDocument extends Model
     {
         $bytes = (int) $this->file_size;
         if ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 2) . ' MB';
+            return number_format($bytes / 1048576, 2).' MB';
         }
         if ($bytes >= 1024) {
-            return number_format($bytes / 1024, 1) . ' KB';
+            return number_format($bytes / 1024, 1).' KB';
         }
-        return $bytes . ' B';
+
+        return $bytes.' B';
     }
 
     public function getIsImageAttribute(): bool
@@ -103,6 +108,7 @@ class ProductDocument extends Model
         if (str_starts_with($this->mime_type ?? '', 'image/')) {
             return true;
         }
+
         return (bool) preg_match('/\.(jpg|jpeg|png|webp|gif|bmp)$/i', $this->file_name ?? '');
     }
 
@@ -113,17 +119,19 @@ class ProductDocument extends Model
 
     public function getIsExpiredAttribute(): bool
     {
-        if (!$this->valid_until) {
+        if (! $this->valid_until) {
             return false;
         }
+
         return $this->valid_until->isPast();
     }
 
     public function getDaysUntilExpiryAttribute(): ?int
     {
-        if (!$this->valid_until) {
+        if (! $this->valid_until) {
             return null;
         }
+
         return (int) Carbon::today()->diffInDays($this->valid_until, false);
     }
 
@@ -168,6 +176,7 @@ class ProductDocument extends Model
     public function getFileUrlAttribute(): string
     {
         $disk = $this->getStorageDisk();
+
         return Storage::disk($disk)->url($this->file_path);
     }
 

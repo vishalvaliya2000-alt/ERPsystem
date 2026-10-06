@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\ActivityLog;
 use App\Models\CommercialShipment;
 use App\Models\CommercialShipmentItem;
+use App\Models\FollowupTask;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\Transporter;
-use App\Models\FollowupTask;
-use App\Models\ActivityLog;
+use App\Services\CompanyFirmContext;
 use App\Services\DocumentTransactionService;
+use App\Services\TransporterTrackingService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ShipmentController extends Controller
 {
@@ -28,18 +29,19 @@ class ShipmentController extends Controller
     public function index()
     {
         $shipments = CommercialShipment::with([
-                'salesOrder.customer',
-                'items.salesOrderItem.product',
-                'items.salesOrderItem.salesOrder.customer',
-                'lrDocument.activeVersion',
-            ])
+            'salesOrder.customer',
+            'items.salesOrderItem.product',
+            'items.salesOrderItem.salesOrder.customer',
+            'lrDocument.activeVersion',
+            'ewayBill',
+        ])
             ->orderByDesc('shipment_date')
             ->get();
 
         // Fetch all open orders with their pending line items (> 0 KG)
         $openOrders = SalesOrder::with(['customer', 'items' => function ($q) {
-                $q->where('balance_qty', '>', 0)->with('product');
-            }])
+            $q->where('balance_qty', '>', 0)->with('product');
+        }])
             ->whereHas('items', function ($q) {
                 $q->where('balance_qty', '>', 0);
             })
@@ -56,14 +58,15 @@ class ShipmentController extends Controller
                     'order_number' => $order->order_number,
                     'customer_name' => $order->customer->company_name ?? 'Client',
                     'product_name' => $it->product->product_name ?? 'Product',
-                    'balance_qty' => (float)$it->balance_qty,
-                    'rate' => (float)$it->rate,
-                    'label' => "{$order->order_number} ({$order->customer->company_name}) · {$it->product->product_name} [Bal: " . number_format($it->balance_qty) . " KG @ ₹{$it->rate}]",
+                    'balance_qty' => (float) $it->balance_qty,
+                    'rate' => (float) $it->rate,
+                    'label' => "{$order->order_number} ({$order->customer->company_name}) · {$it->product->product_name} [Bal: ".number_format($it->balance_qty)." KG @ ₹{$it->rate}]",
                 ];
             }
         }
 
         $transporters = Transporter::where('is_active', true)->orderBy('transporter_name')->get();
+
         return view('shipments.index', compact('shipments', 'openOrders', 'availableItems', 'transporters'));
     }
 
@@ -95,28 +98,30 @@ class ShipmentController extends Controller
         DB::beginTransaction();
         try {
             $proofPath = null;
-            $shipmentNumber = 'SHP-' . date('Ymd') . '-' . rand(100, 999);
+            $shipmentNumber = 'SHP-'.date('Ymd').'-'.rand(100, 999);
             $affectedOrderIds = [];
             $totalConsignmentQty = 0;
             $firstOrderId = null;
-            $freightAmount = ($validated['freight_payment_type'] === 'PAID') ? (float)($validated['freight_amount'] ?? 0) : 0;
+            $freightAmount = ($validated['freight_payment_type'] === 'PAID') ? (float) ($validated['freight_amount'] ?? 0) : 0;
             $status = $isScheduled ? 'SCHEDULED' : ($validated['status'] ?? 'DISPATCHED');
-            $transporterName = !empty($validated['transporter']) ? $validated['transporter'] : ($isScheduled ? 'TBD (To Be Decided)' : 'Direct Factory Handover');
-            $lrNum = !empty($validated['lr_number']) ? $validated['lr_number'] : null;
+            $transporterName = ! empty($validated['transporter']) ? $validated['transporter'] : ($isScheduled ? 'TBD (To Be Decided)' : 'Direct Factory Handover');
+            $lrNum = ! empty($validated['lr_number']) ? $validated['lr_number'] : null;
 
             // Pre-validation of all line items
             foreach ($validated['items'] as $itData) {
                 $orderItem = SalesOrderItem::with('product', 'salesOrder')->findOrFail($itData['sales_order_item_id']);
-                $qty = (float)$itData['quantity'];
+                $qty = (float) $itData['quantity'];
 
-                if ($qty > (float)$orderItem->balance_qty) {
+                if ($qty > (float) $orderItem->balance_qty) {
                     DB::rollBack();
-                    return back()->with('error', "🚫 Disallowed: Dispatch quantity (" . number_format($qty, 2) . " KG) exceeds remaining balance (" . number_format($orderItem->balance_qty, 2) . " KG) for {$orderItem->product->product_name} on PO {$orderItem->salesOrder->order_number}.");
+
+                    return back()->with('error', '🚫 Disallowed: Dispatch quantity ('.number_format($qty, 2).' KG) exceeds remaining balance ('.number_format($orderItem->balance_qty, 2)." KG) for {$orderItem->product->product_name} on PO {$orderItem->salesOrder->order_number}.");
                 }
             }
 
             // Create Master Commercial Shipment
             $shipment = CommercialShipment::create([
+                'firm_id' => CompanyFirmContext::getCurrentFirmId(),
                 'shipment_number' => $shipmentNumber,
                 'sales_order_id' => null,
                 'shipment_date' => Carbon::parse($validated['shipment_date']),
@@ -136,10 +141,10 @@ class ShipmentController extends Controller
             foreach ($validated['items'] as $itData) {
                 $orderItem = SalesOrderItem::with('product', 'salesOrder')->findOrFail($itData['sales_order_item_id']);
                 $order = $orderItem->salesOrder;
-                $qty = (float)$itData['quantity'];
-                $itemVal = $qty * (float)$orderItem->rate;
+                $qty = (float) $itData['quantity'];
+                $itemVal = $qty * (float) $orderItem->rate;
 
-                if (!$firstOrderId) {
+                if (! $firstOrderId) {
                     $firstOrderId = $order->id;
                 }
                 $affectedOrderIds[$order->id] = $order;
@@ -186,11 +191,11 @@ class ShipmentController extends Controller
                     FollowupTask::create([
                         'customer_id' => $ord->customer_id,
                         'type' => 'DISPATCH_SCHEDULE',
-                        'reason' => "Scheduled shipment {$shipment->shipment_number} due on " . Carbon::parse($validated['shipment_date'])->format('d M Y') . " for PO {$ord->order_number}",
+                        'reason' => "Scheduled shipment {$shipment->shipment_number} due on ".Carbon::parse($validated['shipment_date'])->format('d M Y')." for PO {$ord->order_number}",
                         'priority' => 'HIGH',
                         'due_date' => Carbon::parse($validated['shipment_date']),
                         'status' => 'PENDING',
-                        'pending_item' => "Vehicle loading & LR generation for " . number_format($totalConsignmentQty) . " KG",
+                        'pending_item' => 'Vehicle loading & LR generation for '.number_format($totalConsignmentQty).' KG',
                         'next_action' => "Confirm truck placement with {$transporterName} and execute loading at factory",
                     ]);
 
@@ -198,14 +203,14 @@ class ShipmentController extends Controller
                         'customer_id' => $ord->customer_id,
                         'activity_type' => 'SHIPMENT',
                         'title' => "Shipment Scheduled ({$shipment->shipment_number})",
-                        'description' => "Scheduled dispatch of " . number_format($totalConsignmentQty) . " KG on " . Carbon::parse($validated['shipment_date'])->format('d M Y') . " against PO {$ord->order_number}.",
+                        'description' => 'Scheduled dispatch of '.number_format($totalConsignmentQty).' KG on '.Carbon::parse($validated['shipment_date'])->format('d M Y')." against PO {$ord->order_number}.",
                     ]);
                 } else {
                     // Follow-up task for delivery confirmation
                     FollowupTask::create([
                         'customer_id' => $ord->customer_id,
                         'type' => 'DELIVERY_CONFIRMATION',
-                        'reason' => "Material dispatched under LR " . ($shipment->lr_number ?: $shipment->shipment_number) . " ({$shipment->transporter}) for PO {$ord->order_number}",
+                        'reason' => 'Material dispatched under LR '.($shipment->lr_number ?: $shipment->shipment_number)." ({$shipment->transporter}) for PO {$ord->order_number}",
                         'priority' => 'HIGH',
                         'due_date' => Carbon::now()->addDays(3),
                         'status' => 'PENDING',
@@ -216,8 +221,8 @@ class ShipmentController extends Controller
                     ActivityLog::create([
                         'customer_id' => $ord->customer_id,
                         'activity_type' => 'SHIPMENT',
-                        'title' => "Consignment Dispatched (LR: " . ($shipment->lr_number ?: $shipment->shipment_number) . ")",
-                        'description' => "Dispatched material under LR " . ($shipment->lr_number ?: 'N/A') . " via {$shipment->transporter} (" . ($shipment->freight_payment_type === 'PAID' ? "Paid Freight: " . formatINR($freightAmount) : "TO PAY") . ") against PO {$ord->order_number}.",
+                        'title' => 'Consignment Dispatched (LR: '.($shipment->lr_number ?: $shipment->shipment_number).')',
+                        'description' => 'Dispatched material under LR '.($shipment->lr_number ?: 'N/A')." via {$shipment->transporter} (".($shipment->freight_payment_type === 'PAID' ? 'Paid Freight: '.formatINR($freightAmount) : 'TO PAY').") against PO {$ord->order_number}.",
                     ]);
                 }
             }
@@ -234,17 +239,18 @@ class ShipmentController extends Controller
             DB::commit();
 
             $successMsg = ($status === 'SCHEDULED')
-                ? "📅 Shipment plan {$shipment->shipment_number} scheduled for " . Carbon::parse($validated['shipment_date'])->format('d M Y') . " with " . number_format($totalConsignmentQty) . " KG across " . count($affectedOrderIds) . " PO(s)!"
-                : "✓ Consignment {$shipment->lr_number} created successfully (" . ($shipment->freight_payment_type === 'PAID' ? "Freight Paid: " . formatINR($freightAmount) : "Freight: TO PAY") . ") with " . count($validated['items']) . " item(s) across " . count($affectedOrderIds) . " PO(s)!";
+                ? "📅 Shipment plan {$shipment->shipment_number} scheduled for ".Carbon::parse($validated['shipment_date'])->format('d M Y').' with '.number_format($totalConsignmentQty).' KG across '.count($affectedOrderIds).' PO(s)!'
+                : "✓ Consignment {$shipment->lr_number} created successfully (".($shipment->freight_payment_type === 'PAID' ? 'Freight Paid: '.formatINR($freightAmount) : 'Freight: TO PAY').') with '.count($validated['items']).' item(s) across '.count($affectedOrderIds).' PO(s)!';
 
             return redirect()->route('shipments.index')->with('success', $successMsg);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Shipment creation failed: ' . $e->getMessage(), [
+            Log::error('Shipment creation failed: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Shipment creation failed: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Shipment creation failed: '.$e->getMessage());
         }
     }
 
@@ -258,8 +264,8 @@ class ShipmentController extends Controller
         $validated = $request->validate([
             'transporter' => ($isNowDispatched && empty($shipment->transporter)) ? 'required|string|max:100' : 'nullable|string|max:100',
             'lr_number' => $isNowDispatched
-                ? 'required|string|max:100|unique:commercial_shipments,lr_number,' . $id
-                : 'nullable|string|max:100|unique:commercial_shipments,lr_number,' . $id,
+                ? 'required|string|max:100|unique:commercial_shipments,lr_number,'.$id
+                : 'nullable|string|max:100|unique:commercial_shipments,lr_number,'.$id,
             'vehicle_number' => 'nullable|string|max:50',
             'destination' => 'nullable|string|max:255',
             'shipment_date' => 'required|date',
@@ -274,12 +280,12 @@ class ShipmentController extends Controller
 
         DB::beginTransaction();
         try {
-            $freightAmount = ($validated['freight_payment_type'] === 'PAID') ? (float)($validated['freight_amount'] ?? 0) : 0;
+            $freightAmount = ($validated['freight_payment_type'] === 'PAID') ? (float) ($validated['freight_amount'] ?? 0) : 0;
             $newStatus = $validated['status'] ?? $shipment->status;
 
             $data = [
                 'transporter' => $validated['transporter'] ?: ($shipment->transporter ?: 'TBD (To Be Decided)'),
-                'lr_number' => !empty($validated['lr_number']) ? $validated['lr_number'] : $shipment->lr_number,
+                'lr_number' => ! empty($validated['lr_number']) ? $validated['lr_number'] : $shipment->lr_number,
                 'vehicle_number' => $validated['vehicle_number'] ?? null,
                 'destination' => $validated['destination'] ?? null,
                 'shipment_date' => Carbon::parse($validated['shipment_date']),
@@ -331,11 +337,12 @@ class ShipmentController extends Controller
             return redirect()->route('shipments.index')->with('success', $msg);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update shipment #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update shipment #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update shipment: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update shipment: '.$e->getMessage());
         }
     }
 
@@ -352,7 +359,7 @@ class ShipmentController extends Controller
             foreach ($shipment->items as $sItem) {
                 $orderItem = $sItem->salesOrderItem;
                 if ($orderItem) {
-                    $restoredQty = (float)$sItem->quantity;
+                    $restoredQty = (float) $sItem->quantity;
                     $newBalance = $orderItem->balance_qty + $restoredQty;
                     $newShipped = max(0, $orderItem->shipped_qty - $restoredQty);
                     $newStatus = $newShipped <= 0 ? 'PENDING' : 'PARTIAL';
@@ -393,13 +400,15 @@ class ShipmentController extends Controller
             $shipment->delete();
 
             DB::commit();
+
             return redirect()->route('shipments.index')->with('success', "✓ Shipment {$lrNo} has been deleted and all PO balances have been restored!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete shipment #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete shipment #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete shipment: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete shipment: '.$e->getMessage());
         }
     }
 
@@ -438,10 +447,10 @@ class ShipmentController extends Controller
                     ->where('status', 'PENDING')
                     ->where(function ($q) use ($shipment) {
                         $q->where('type', 'DELIVERY_CONFIRMATION')
-                          ->where(function ($sq) use ($shipment) {
-                              $sq->where('pending_item', 'like', "%{$shipment->lr_number}%")
-                                 ->orWhere('reason', 'like', "%{$shipment->lr_number}%");
-                          });
+                            ->where(function ($sq) use ($shipment) {
+                                $sq->where('pending_item', 'like', "%{$shipment->lr_number}%")
+                                    ->orWhere('reason', 'like', "%{$shipment->lr_number}%");
+                            });
                     })
                     ->update([
                         'status' => 'COMPLETED',
@@ -463,17 +472,18 @@ class ShipmentController extends Controller
             return back()->with('success', "✓ Shipment {$shipment->lr_number} marked as {$status}!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update status on shipment #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update status on shipment #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to update status: ' . $e->getMessage(),
+                    'message' => 'Failed to update status: '.$e->getMessage(),
                 ], 500);
             }
-            return back()->with('error', 'Failed to update shipment status: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to update shipment status: '.$e->getMessage());
         }
     }
 
@@ -483,7 +493,7 @@ class ShipmentController extends Controller
     public function liveTracking(Request $request, $id)
     {
         $shipment = CommercialShipment::with(['salesOrder.customer', 'items.salesOrderItem.product'])->findOrFail($id);
-        $data = \App\Services\TransporterTrackingService::fetchLiveTrackingDetails(
+        $data = TransporterTrackingService::fetchLiveTrackingDetails(
             $shipment->transporter,
             $shipment->lr_number,
             $shipment,
@@ -503,7 +513,7 @@ class ShipmentController extends Controller
         $shipmentId = $request->query('shipment_id');
 
         $shipment = $shipmentId ? CommercialShipment::with(['salesOrder.customer'])->find($shipmentId) : null;
-        $data = \App\Services\TransporterTrackingService::fetchLiveTrackingDetails(
+        $data = TransporterTrackingService::fetchLiveTrackingDetails(
             $transporter,
             $lr,
             $shipment,

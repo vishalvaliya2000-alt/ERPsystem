@@ -1,12 +1,11 @@
 <?php
 
+use App\Livewire\Dashboard\ExecutivePulse;
 use App\Models\Customer;
-use App\Models\Invoice;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TenantManager;
 use Livewire\Livewire;
-use App\Livewire\Dashboard\ExecutivePulse;
 
 beforeEach(function () {
     $this->tenant = Tenant::first() ?? Tenant::create([

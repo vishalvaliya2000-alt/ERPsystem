@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToTenant;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,15 +51,16 @@ class ProductDocumentShare extends Model
 
     public function getIsExpiredAttribute(): bool
     {
-        if (!$this->expires_at) {
+        if (! $this->expires_at) {
             return false;
         }
+
         return $this->expires_at->isPast();
     }
 
     public function getHasPasswordAttribute(): bool
     {
-        return !empty($this->password_hash);
+        return ! empty($this->password_hash);
     }
 
     public function verifyPassword(?string $password): bool
@@ -71,6 +71,7 @@ class ProductDocumentShare extends Model
         if (empty($password)) {
             return false;
         }
+
         return Hash::check($password, $this->password_hash);
     }
 
@@ -83,7 +84,7 @@ class ProductDocumentShare extends Model
     {
         $query = ProductDocument::where('product_id', $this->product_id);
 
-        if (!empty($this->selected_document_ids) && is_array($this->selected_document_ids)) {
+        if (! empty($this->selected_document_ids) && is_array($this->selected_document_ids)) {
             $query->whereIn('id', $this->selected_document_ids);
         }
 

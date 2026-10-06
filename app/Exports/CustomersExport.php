@@ -8,10 +8,10 @@ use App\Models\Customer;
 use Illuminate\Support\Enumerable;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
-class CustomersExport implements FromCollection, WithHeadings, WithTitle, WithMapping
+class CustomersExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     public function collection(): Enumerable
     {
@@ -46,7 +46,7 @@ class CustomersExport implements FromCollection, WithHeadings, WithTitle, WithMa
             $customer->primary_email ?? '',
             $customer->city ?? '',
             $customer->state ?? '',
-            $customer->payment_terms_days . ' Days',
+            $customer->payment_terms_days.' Days',
             (float) $customer->total_revenue,
             (float) $customer->outstanding_amount,
         ];

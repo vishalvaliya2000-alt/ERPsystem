@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\FollowupTask;
-use App\Models\Customer;
-use App\Models\Lead;
-use App\Models\Sample;
-use App\Models\Invoice;
 use App\Models\ActivityLog;
+use App\Models\Customer;
+use App\Models\FollowupTask;
+use App\Models\Invoice;
+use App\Models\Lead;
+use App\Models\SalesOrder;
+use App\Models\Sample;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -51,7 +52,7 @@ class TaskController extends Controller
         DB::beginTransaction();
         try {
             $custId = $validated['customer_id'] ?? null;
-            if (!$custId && !empty($validated['customer_name'])) {
+            if (! $custId && ! empty($validated['customer_name'])) {
                 $found = Customer::where('company_name', 'like', "%{$validated['customer_name']}%")->first();
                 if ($found) {
                     $custId = $found->id;
@@ -74,7 +75,7 @@ class TaskController extends Controller
                     'customer_id' => $custId,
                     'activity_type' => 'NOTE',
                     'title' => "Task Scheduled: {$task->next_action}",
-                    'description' => "Reason: {$task->reason} | Due: " . $task->due_date->format('d M Y'),
+                    'description' => "Reason: {$task->reason} | Due: ".$task->due_date->format('d M Y'),
                 ]);
             }
 
@@ -87,14 +88,15 @@ class TaskController extends Controller
             return back()->with('success', 'Follow-up task scheduled successfully!');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create task: ' . $e->getMessage(), [
+            Log::error('Failed to create task: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to schedule task: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed to schedule task: '.$e->getMessage()], 500);
             }
-            return back()->withInput()->with('error', 'Failed to schedule task: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to schedule task: '.$e->getMessage());
         }
     }
 
@@ -112,7 +114,7 @@ class TaskController extends Controller
         $taskType = 'SALES_FOLLOWUP';
         $entityType = null;
         $entityId = null;
-        $titleDesc = "Follow-up Action Completed";
+        $titleDesc = 'Follow-up Action Completed';
 
         DB::beginTransaction();
         try {
@@ -157,7 +159,7 @@ class TaskController extends Controller
                 $taskType = 'SAMPLE_TRIAL';
                 $entityType = 'SAMPLE';
                 $entityId = $sample->id;
-                $titleDesc = "Sample evaluation follow-up";
+                $titleDesc = 'Sample evaluation follow-up';
 
                 FollowupTask::where('related_entity_type', 'SAMPLE')
                     ->where('related_entity_id', $sample->id)
@@ -188,10 +190,10 @@ class TaskController extends Controller
                     // If this is a Sales Order task and outcome remarks indicate client will update / dispatch as per requirement,
                     // update the Sales Order notes so subsequent daily crons won't recreate the same follow-up!
                     if ($task->related_entity_type === 'SALES_ORDER' && $task->related_entity_id) {
-                        $so = \App\Models\SalesOrder::find($task->related_entity_id);
+                        $so = SalesOrder::find($task->related_entity_id);
                         if ($so) {
-                            $existingNotes = $so->notes ? ($so->notes . ' | ') : '';
-                            $so->update(['notes' => $existingNotes . $outcome]);
+                            $existingNotes = $so->notes ? ($so->notes.' | ') : '';
+                            $so->update(['notes' => $existingNotes.$outcome]);
                         }
                     }
                 }
@@ -227,7 +229,7 @@ class TaskController extends Controller
                         'customer_id' => $customerId,
                         'activity_type' => 'NOTE',
                         'title' => "Next Action Scheduled: {$nextAction}",
-                        'description' => "Due on " . $nextDue->format('d M Y'),
+                        'description' => 'Due on '.$nextDue->format('d M Y'),
                     ]);
                 }
             }
@@ -241,14 +243,15 @@ class TaskController extends Controller
             return back()->with('success', 'Action completed and next timeline step updated successfully!');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to complete task #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to complete task #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to complete task: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed to complete task: '.$e->getMessage()], 500);
             }
-            return back()->with('error', 'Failed to complete task: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to complete task: '.$e->getMessage());
         }
     }
 }

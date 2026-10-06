@@ -4,6 +4,7 @@ use App\Models\BusinessDocument;
 use App\Models\CommercialShipment;
 use App\Models\Customer;
 use App\Models\DocumentVersion;
+use App\Models\FollowupTask;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\SalesOrder;
@@ -40,18 +41,18 @@ beforeEach(function () {
     // Create baseline customer and product
     $this->customer = Customer::create([
         'tenant_id' => $this->tenant->id,
-        'customer_code' => 'CUST-TEST-' . rand(100, 999),
+        'customer_code' => 'CUST-TEST-'.rand(100, 999),
         'company_name' => 'Test Spice Global Foods',
         'city' => 'Mahuva',
         'state' => 'Gujarat',
-        'gst_number' => '24AAACT' . rand(1000, 9999) . 'Z1Z1',
+        'gst_number' => '24AAACT'.rand(1000, 9999).'Z1Z1',
         'payment_terms_days' => 30,
         'stage' => 'ACTIVE',
     ]);
 
     $this->product = Product::create([
         'tenant_id' => $this->tenant->id,
-        'product_code' => 'PRD-' . rand(100, 999),
+        'product_code' => 'PRD-'.rand(100, 999),
         'product_name' => 'Premium White Onion Powder',
         'granulation' => 'Powder 80-100 Mesh',
         'standard_rate' => 140,
@@ -137,7 +138,7 @@ test('3. Shipment creation directly attaches transporter LR document with bidire
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'SO-TEST-' . rand(1000, 9999),
+        'order_number' => 'SO-TEST-'.rand(1000, 9999),
         'po_number' => 'PO-SHP-001',
         'order_date' => now(),
         'total_amount' => 280000,
@@ -277,7 +278,7 @@ test('6. Customer 360 page renders all connected documents and transaction badge
     DocumentVersion::create([
         'document_id' => $poDoc->id,
         'version_number' => 1,
-        'file_path' => 'documents/' . $this->tenant->id . '/test_po.pdf',
+        'file_path' => 'documents/'.$this->tenant->id.'/test_po.pdf',
         'file_name' => 'test_po.pdf',
         'file_size' => 1024,
         'mime_type' => 'application/pdf',
@@ -295,7 +296,7 @@ test('7. Two-phase shipment flow: scheduling reserves balance without LR and con
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'SO-SCHED-' . rand(100, 999),
+        'order_number' => 'SO-SCHED-'.rand(100, 999),
         'order_date' => now(),
         'total_amount' => 140000,
         'status' => 'APPROVED',
@@ -337,11 +338,11 @@ test('7. Two-phase shipment flow: scheduling reserves balance without LR and con
 
     // Verify item quantity deducted/reserved from PO balance
     $orderItem->refresh();
-    expect((float)$orderItem->balance_qty)->toBe(400.0);
-    expect((float)$orderItem->shipped_qty)->toBe(600.0);
+    expect((float) $orderItem->balance_qty)->toBe(400.0);
+    expect((float) $orderItem->shipped_qty)->toBe(600.0);
 
     // Verify FollowupTask created for DISPATCH_SCHEDULE
-    $task = \App\Models\FollowupTask::where('customer_id', $this->customer->id)
+    $task = FollowupTask::where('customer_id', $this->customer->id)
         ->where('type', 'DISPATCH_SCHEDULE')
         ->latest()
         ->first();
@@ -369,7 +370,7 @@ test('7. Two-phase shipment flow: scheduling reserves balance without LR and con
     expect($shipment->vehicle_number)->toBe('GJ-04-AX-5555');
 
     // Verify delivery confirmation task created
-    $deliveryTask = \App\Models\FollowupTask::where('customer_id', $this->customer->id)
+    $deliveryTask = FollowupTask::where('customer_id', $this->customer->id)
         ->where('type', 'DELIVERY_CONFIRMATION')
         ->latest()
         ->first();

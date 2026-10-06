@@ -8,10 +8,10 @@ use App\Models\Product;
 use Illuminate\Support\Enumerable;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
-class ProductsExport implements FromCollection, WithHeadings, WithTitle, WithMapping
+class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     public function collection(): Enumerable
     {

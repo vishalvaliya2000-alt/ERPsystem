@@ -3,9 +3,6 @@
 use App\Models\BusinessDocument;
 use App\Models\Customer;
 use App\Models\DocumentVersion;
-use App\Models\Invoice;
-use App\Models\SalesOrder;
-use App\Models\CommercialShipment;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TenantManager;
@@ -103,7 +100,7 @@ test('document show endpoint returns document details, active version, and conne
     DocumentVersion::create([
         'document_id' => $doc->id,
         'version_number' => 1,
-        'file_path' => 'documents/' . $this->tenant->id . '/test.pdf',
+        'file_path' => 'documents/'.$this->tenant->id.'/test.pdf',
         'file_name' => 'test_po.pdf',
         'file_size' => 20480,
         'mime_type' => 'application/pdf',

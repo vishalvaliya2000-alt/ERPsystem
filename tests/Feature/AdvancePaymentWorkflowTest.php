@@ -29,7 +29,7 @@ beforeEach(function () {
     $this->customer = Customer::create([
         'tenant_id' => $this->tenant->id,
         'company_name' => 'Advance Test Spices Pvt Ltd',
-        'customer_code' => 'CUST-TEST-' . rand(1000, 9999),
+        'customer_code' => 'CUST-TEST-'.rand(1000, 9999),
         'city' => 'Mahuva',
         'state' => 'Gujarat',
         'payment_terms_days' => 30,
@@ -37,7 +37,7 @@ beforeEach(function () {
 
     $this->product = Product::create([
         'tenant_id' => $this->tenant->id,
-        'product_code' => 'PRD-ADV-' . rand(100, 999),
+        'product_code' => 'PRD-ADV-'.rand(100, 999),
         'product_name' => 'Dehydrated White Onion Kibbled',
         'standard_rate' => 150,
     ]);
@@ -46,7 +46,7 @@ beforeEach(function () {
 test('creating a sales order with advance_required sets status to ADVANCE_PENDING and initializes balance', function () {
     $response = $this->actingAs($this->user)->post(route('orders.store'), [
         'customer_id' => $this->customer->id,
-        'order_number' => 'PO-TEST-' . rand(1000, 9999),
+        'order_number' => 'PO-TEST-'.rand(1000, 9999),
         'po_number' => 'BUYER-PO-991',
         'order_date' => now()->format('Y-m-d'),
         'payment_terms' => '30% Advance, Balance on Dispatch',
@@ -64,17 +64,17 @@ test('creating a sales order with advance_required sets status to ADVANCE_PENDIN
 
     $order = SalesOrder::where('po_number', 'BUYER-PO-991')->first();
     expect($order)->not->toBeNull();
-    expect((float)$order->advance_required)->toBe(50000.0);
-    expect((float)$order->advance_received)->toBe(0.0);
+    expect((float) $order->advance_required)->toBe(50000.0);
+    expect((float) $order->advance_received)->toBe(0.0);
     expect($order->status)->toBe('ADVANCE_PENDING');
-    expect((float)$order->balance_amount)->toBe((float)$order->total_amount);
+    expect((float) $order->balance_amount)->toBe((float) $order->total_amount);
 });
 
 test('recording an advance payment against a PO updates advance_received and flips status to CONFIRMED when fulfilled', function () {
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'PO-REC-' . rand(1000, 9999),
+        'order_number' => 'PO-REC-'.rand(1000, 9999),
         'po_number' => 'BUYER-REC-1',
         'order_date' => now(),
         'subtotal' => 100000,
@@ -98,8 +98,8 @@ test('recording an advance payment against a PO updates advance_received and fli
     $res1->assertRedirect();
     $order->refresh();
 
-    expect((float)$order->advance_received)->toBe(15000.0);
-    expect((float)$order->balance_amount)->toBe(90000.0);
+    expect((float) $order->advance_received)->toBe(15000.0);
+    expect((float) $order->balance_amount)->toBe(90000.0);
     expect($order->status)->toBe('ADVANCE_PENDING');
 
     // 2. Record remaining advance of 15,000 (status should transition to CONFIRMED)
@@ -114,8 +114,8 @@ test('recording an advance payment against a PO updates advance_received and fli
     $res2->assertRedirect();
     $order->refresh();
 
-    expect((float)$order->advance_received)->toBe(30000.0);
-    expect((float)$order->balance_amount)->toBe(75000.0);
+    expect((float) $order->advance_received)->toBe(30000.0);
+    expect((float) $order->balance_amount)->toBe(75000.0);
     expect($order->status)->toBe('CONFIRMED');
 
     // Verify PaymentReceipt records
@@ -129,7 +129,7 @@ test('cannot delete a PO that has recorded advance payments', function () {
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'PO-DEL-' . rand(1000, 9999),
+        'order_number' => 'PO-DEL-'.rand(1000, 9999),
         'po_number' => 'BUYER-DEL-1',
         'order_date' => now(),
         'subtotal' => 50000,
@@ -164,7 +164,7 @@ test('generating a tax invoice against a PO automatically applies the advance an
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'PO-INV-' . rand(1000, 9999),
+        'order_number' => 'PO-INV-'.rand(1000, 9999),
         'po_number' => 'BUYER-INV-1',
         'order_date' => now(),
         'subtotal' => 100000,
@@ -191,7 +191,7 @@ test('generating a tax invoice against a PO automatically applies the advance an
     expect($order->unadjustedAdvanceAmount())->toBe(35000.0);
 
     // Create Tax Invoice for 100,000 subtotal + 5% GST = 105,000
-    $invNumber = 'INV-ADV-' . rand(1000, 9999);
+    $invNumber = 'INV-ADV-'.rand(1000, 9999);
     $response = $this->actingAs($this->user)->post(route('invoices.store'), [
         'customer_id' => $this->customer->id,
         'sales_order_id' => $order->id,
@@ -207,9 +207,9 @@ test('generating a tax invoice against a PO automatically applies the advance an
 
     $invoice = Invoice::where('invoice_number', $invNumber)->first();
     expect($invoice)->not->toBeNull();
-    expect((float)$invoice->total_amount)->toBe(105000.0);
-    expect((float)$invoice->amount_received)->toBe(35000.0);
-    expect((float)$invoice->balance_due)->toBe(70000.0);
+    expect((float) $invoice->total_amount)->toBe(105000.0);
+    expect((float) $invoice->amount_received)->toBe(35000.0);
+    expect((float) $invoice->balance_due)->toBe(70000.0);
     expect($invoice->status)->toBe('PART_PAID');
 
     // Verify unadjusted advance on PO is now zero
@@ -221,14 +221,14 @@ test('generating a tax invoice against a PO automatically applies the advance an
         ->where('payment_mode', 'ADVANCE_OFFSET')
         ->first();
     expect($offsetReceipt)->not->toBeNull();
-    expect((float)$offsetReceipt->amount_received)->toBe(35000.0);
+    expect((float) $offsetReceipt->amount_received)->toBe(35000.0);
 });
 
 test('tax invoice PDF renders advance deduction row when amount_received is present', function () {
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'PO-PDF-' . rand(1000, 9999),
+        'order_number' => 'PO-PDF-'.rand(1000, 9999),
         'po_number' => 'BUYER-PDF-1',
         'order_date' => now(),
         'subtotal' => 50000,
@@ -244,7 +244,7 @@ test('tax invoice PDF renders advance deduction row when amount_received is pres
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
         'sales_order_id' => $order->id,
-        'invoice_number' => 'INV-PDF-' . rand(1000, 9999),
+        'invoice_number' => 'INV-PDF-'.rand(1000, 9999),
         'invoice_date' => now(),
         'due_date' => now()->addDays(30),
         'material_subtotal' => 50000,
@@ -271,7 +271,7 @@ test('can manually adjust advance deduction on partial shipment invoice and rese
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'PO-PART-' . rand(1000, 9999),
+        'order_number' => 'PO-PART-'.rand(1000, 9999),
         'po_number' => 'BUYER-PART-1',
         'order_date' => now(),
         'subtotal' => 150000,
@@ -298,7 +298,7 @@ test('can manually adjust advance deduction on partial shipment invoice and rese
 
     // 1. Invoice First Partial Delivery: 500 KG = 75,000 + 5% GST = 78,750
     // User manually specifies advance_deduction_amount = 22,500 (50% of the advance)
-    $inv1Number = 'INV-PART-1-' . rand(1000, 9999);
+    $inv1Number = 'INV-PART-1-'.rand(1000, 9999);
     $res1 = $this->actingAs($this->user)->post(route('invoices.store'), [
         'customer_id' => $this->customer->id,
         'sales_order_id' => $order->id,
@@ -315,9 +315,9 @@ test('can manually adjust advance deduction on partial shipment invoice and rese
 
     $inv1 = Invoice::where('invoice_number', $inv1Number)->first();
     expect($inv1)->not->toBeNull();
-    expect((float)$inv1->total_amount)->toBe(78750.0);
-    expect((float)$inv1->amount_received)->toBe(22500.0);
-    expect((float)$inv1->balance_due)->toBe(56250.0); // 78,750 - 22,500
+    expect((float) $inv1->total_amount)->toBe(78750.0);
+    expect((float) $inv1->amount_received)->toBe(22500.0);
+    expect((float) $inv1->balance_due)->toBe(56250.0); // 78,750 - 22,500
     expect($inv1->status)->toBe('PART_PAID');
 
     // Verify exactly 22,500 remaining unadjusted advance on PO for the next invoice
@@ -326,7 +326,7 @@ test('can manually adjust advance deduction on partial shipment invoice and rese
 
     // 2. Invoice Second Partial Delivery: Remaining 500 KG = 75,000 + 5% GST = 78,750
     // User deducts the remaining 22,500 advance
-    $inv2Number = 'INV-PART-2-' . rand(1000, 9999);
+    $inv2Number = 'INV-PART-2-'.rand(1000, 9999);
     $res2 = $this->actingAs($this->user)->post(route('invoices.store'), [
         'customer_id' => $this->customer->id,
         'sales_order_id' => $order->id,
@@ -343,9 +343,9 @@ test('can manually adjust advance deduction on partial shipment invoice and rese
 
     $inv2 = Invoice::where('invoice_number', $inv2Number)->first();
     expect($inv2)->not->toBeNull();
-    expect((float)$inv2->total_amount)->toBe(78750.0);
-    expect((float)$inv2->amount_received)->toBe(22500.0);
-    expect((float)$inv2->balance_due)->toBe(56250.0);
+    expect((float) $inv2->total_amount)->toBe(78750.0);
+    expect((float) $inv2->amount_received)->toBe(22500.0);
+    expect((float) $inv2->balance_due)->toBe(56250.0);
 
     // Now all advance is fully utilized
     $order->refresh();
@@ -356,7 +356,7 @@ test('user can choose zero advance deduction to preserve all advance for later',
     $order = SalesOrder::create([
         'tenant_id' => $this->tenant->id,
         'customer_id' => $this->customer->id,
-        'order_number' => 'PO-ZERO-' . rand(1000, 9999),
+        'order_number' => 'PO-ZERO-'.rand(1000, 9999),
         'po_number' => 'BUYER-ZERO-1',
         'order_date' => now(),
         'subtotal' => 100000,
@@ -379,7 +379,7 @@ test('user can choose zero advance deduction to preserve all advance for later',
         'receipt_date' => now(),
     ]);
 
-    $invNumber = 'INV-ZERO-' . rand(1000, 9999);
+    $invNumber = 'INV-ZERO-'.rand(1000, 9999);
     $res = $this->actingAs($this->user)->post(route('invoices.store'), [
         'customer_id' => $this->customer->id,
         'sales_order_id' => $order->id,
@@ -396,13 +396,12 @@ test('user can choose zero advance deduction to preserve all advance for later',
 
     $inv = Invoice::where('invoice_number', $invNumber)->first();
     expect($inv)->not->toBeNull();
-    expect((float)$inv->total_amount)->toBe(52500.0);
-    expect((float)$inv->amount_received)->toBe(0.0);
-    expect((float)$inv->balance_due)->toBe(52500.0);
+    expect((float) $inv->total_amount)->toBe(52500.0);
+    expect((float) $inv->amount_received)->toBe(0.0);
+    expect((float) $inv->balance_due)->toBe(52500.0);
     expect($inv->status)->toBe('ISSUED');
 
     // 100% of advance remains unadjusted on PO
     $order->refresh();
     expect($order->unadjustedAdvanceAmount())->toBe(30000.0);
 });
-

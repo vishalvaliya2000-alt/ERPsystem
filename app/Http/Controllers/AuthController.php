@@ -2,19 +2,44 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use App\Models\User;
-use App\Models\Tenant;
 
 class AuthController extends Controller
 {
-    public function showLogin()
+    public function showLogin(Request $request)
     {
         if (Auth::check()) {
             return redirect()->intended(route('dashboard'));
+        }
+
+        // Audited Super-Admin Impersonation from Central Portal
+        if ($request->boolean('impersonate') && $request->filled('tenant_id')) {
+            $tenantId = (string) $request->input('tenant_id');
+            $centralConn = config('tenancy.database.central_connection', 'mysql');
+
+            $validLog = DB::connection($centralConn)->table('impersonation_logs')
+                ->where('tenant_id', $tenantId)
+                ->where('started_at', '>=', now()->subMinutes(10))
+                ->latest('started_at')
+                ->first();
+
+            if ($validLog) {
+                $user = User::where('is_active', true)->first();
+
+                if ($user) {
+                    Auth::login($user);
+                    $request->session()->regenerate();
+                    session(['is_impersonating' => true]);
+
+                    return redirect()->route('dashboard')->with('info', "Super-Admin Impersonation active as {$user->name}.");
+                }
+            }
         }
 
         return view('auth.login');
@@ -41,7 +66,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $user = Auth::user();
 
-            if (!$user->is_active) {
+            if (! $user->is_active) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -53,7 +78,7 @@ class AuthController extends Controller
 
             $request->session()->regenerate();
 
-            return redirect()->intended(route('dashboard'))->with('success', 'Welcome back, ' . $user->name . '!');
+            return redirect()->intended(route('dashboard'))->with('success', 'Welcome back, '.$user->name.'!');
         }
 
         return back()->withInput($request->only('email', 'remember'))->withErrors([
@@ -82,22 +107,22 @@ class AuthController extends Controller
         // 1. Create Tenant (New Business Workspace) - Zero Dummy Data
         $tenant = Tenant::create([
             'name' => trim($validated['company_name']),
-            'slug' => Str::slug($validated['company_name']) . '-' . rand(100, 999),
+            'slug' => Str::slug($validated['company_name']).'-'.rand(100, 999),
             'tagline' => 'GST Billing, Inventory & Operations',
             'industry' => $validated['industry'],
             'currency_code' => 'INR',
             'currency_symbol' => '₹',
             'tax_id_label' => 'GSTIN',
-            'tax_id_number' => !empty($validated['gstin']) ? strtoupper(trim($validated['gstin'])) : null,
+            'tax_id_number' => ! empty($validated['gstin']) ? strtoupper(trim($validated['gstin'])) : null,
             'email' => strtolower(trim($validated['email'])),
             'phone' => trim($validated['phone']),
-            'city' => !empty($validated['city']) ? trim($validated['city']) : null,
-            'state' => !empty($validated['state']) ? trim($validated['state']) : 'Gujarat',
+            'city' => ! empty($validated['city']) ? trim($validated['city']) : null,
+            'state' => ! empty($validated['state']) ? trim($validated['state']) : 'Gujarat',
             'country' => 'India',
-            'invoice_prefix' => $prefix . '-INV',
-            'quotation_prefix' => $prefix . '-QUO',
-            'po_prefix' => $prefix . '-PO',
-            'shipment_prefix' => $prefix . '-SHP',
+            'invoice_prefix' => $prefix.'-INV',
+            'quotation_prefix' => $prefix.'-QUO',
+            'po_prefix' => $prefix.'-PO',
+            'shipment_prefix' => $prefix.'-SHP',
             'plan' => 'GROWTH_ENTERPRISE',
             'is_active' => true,
         ]);
@@ -140,6 +165,7 @@ class AuthController extends Controller
     public function profile()
     {
         $user = Auth::user();
+
         return view('auth.profile', compact('user'));
     }
 

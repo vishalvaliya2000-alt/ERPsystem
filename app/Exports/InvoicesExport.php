@@ -8,10 +8,10 @@ use App\Models\Invoice;
 use Illuminate\Support\Enumerable;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
-class InvoicesExport implements FromCollection, WithHeadings, WithTitle, WithMapping
+class InvoicesExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     public function collection(): Enumerable
     {

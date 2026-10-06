@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\ProductionBatch;
 use App\Models\InventoryStock;
 use App\Models\Product;
+use App\Models\ProductionBatch;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +19,7 @@ class ProductionController extends Controller
         $products = Product::where('is_active', true)->get();
 
         $totalStockKg = $stocks->sum('current_stock_qty');
-        $lowStockCount = $stocks->filter(fn($s) => $s->current_stock_qty <= $s->min_threshold_qty)->count();
+        $lowStockCount = $stocks->filter(fn ($s) => $s->current_stock_qty <= $s->min_threshold_qty)->count();
 
         return view('production.index', compact('stocks', 'batches', 'products', 'totalStockKg', 'lowStockCount'));
     }
@@ -38,7 +38,7 @@ class ProductionController extends Controller
         DB::beginTransaction();
         try {
             $prod = Product::findOrFail($validated['product_id']);
-            $batchNo = 'B-' . $prod->product_code . '-' . date('dmy');
+            $batchNo = 'B-'.$prod->product_code.'-'.date('dmy');
 
             $batch = ProductionBatch::create([
                 'batch_number' => $batchNo,
@@ -48,7 +48,7 @@ class ProductionController extends Controller
                 'available_qty' => $validated['batch_qty'],
                 'moisture_percentage' => $validated['moisture_percentage'] ?? 5.0,
                 'sensory_grade' => $validated['sensory_grade'] ?? 'Premium Export Grade',
-                'raw_lot_number' => $validated['raw_lot_number'] ?? ('LOT-' . date('Ymd')),
+                'raw_lot_number' => $validated['raw_lot_number'] ?? ('LOT-'.date('Ymd')),
                 'status' => 'QUALITY_APPROVED',
                 'notes' => $validated['notes'] ?? null,
             ]);
@@ -63,11 +63,12 @@ class ProductionController extends Controller
             return redirect()->route('production.index')->with('success', "Batch {$batchNo} ({$batch->batch_qty} KG) registered and added to stock!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create production batch: ' . $e->getMessage(), [
+            Log::error('Failed to create production batch: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to register batch: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to register batch: '.$e->getMessage());
         }
     }
 }

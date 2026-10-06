@@ -2,15 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Tenant;
+use App\Models\ActivityLog;
 use App\Models\CommercialShipment;
-use App\Models\CommercialShipmentItem;
+use App\Models\Invoice;
 use App\Models\PaymentReceipt;
 use App\Models\SalesOrder;
-use App\Models\Invoice;
-use App\Models\ActivityLog;
+use App\Models\Tenant;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class SendDailyDigestCommand extends Command
 {
@@ -42,19 +41,20 @@ class SendDailyDigestCommand extends Command
         $tenants = $tenantsQuery->get();
 
         if ($tenants->isEmpty()) {
-            $this->warn("No active tenants found to process.");
+            $this->warn('No active tenants found to process.');
+
             return 0;
         }
 
-        $this->info("🌙 Compiling 7:00 PM Evening Executive Briefing for " . $tenants->count() . " active tenant(s)...");
+        $this->info('🌙 Compiling 7:00 PM Evening Executive Briefing for '.$tenants->count().' active tenant(s)...');
 
         $today = Carbon::today();
         $tomorrow = Carbon::tomorrow();
 
         foreach ($tenants as $tenant) {
             $this->line("\n=======================================================");
-            $this->info("🏢 {$tenant->name} — Daily Executive Digest (" . $today->format('d M Y') . ")");
-            $this->line("=======================================================");
+            $this->info("🏢 {$tenant->name} — Daily Executive Digest (".$today->format('d M Y').')');
+            $this->line('=======================================================');
 
             // 1. TODAY'S DISPATCHES
             $todayShipments = CommercialShipment::withoutGlobalScopes()
@@ -76,7 +76,7 @@ class SendDailyDigestCommand extends Command
                 $transporter = $shp->transporter ?: 'Direct Truck';
                 $dest = $shp->destination ?: ($cust?->city ?? 'Godown');
 
-                $shipmentLines[] = "• LR {$lr} ({$transporter}): " . number_format($qty) . " KG {$firstProd} to {$dest} ({$custName})";
+                $shipmentLines[] = "• LR {$lr} ({$transporter}): ".number_format($qty)." KG {$firstProd} to {$dest} ({$custName})";
             }
 
             // 2. TODAY'S COLLECTIONS
@@ -94,7 +94,7 @@ class SendDailyDigestCommand extends Command
                 $custName = $rec->customer?->company_name ?? 'Customer';
                 $ref = $rec->reference_number ? " [Ref: {$rec->reference_number}]" : '';
                 $mode = $rec->payment_mode ?: 'RTGS';
-                $receiptLines[] = "• {$custName}: " . formatINR($rec->amount_received) . " ({$mode}{$ref})";
+                $receiptLines[] = "• {$custName}: ".formatINR($rec->amount_received)." ({$mode}{$ref})";
             }
 
             // 3. TODAY'S NEW SALES ORDERS
@@ -113,7 +113,7 @@ class SendDailyDigestCommand extends Command
                 $totalOrderQty += $orderQty;
                 $poNum = $ord->po_number ?: $ord->order_number;
                 $custName = $ord->customer?->company_name ?? 'Client';
-                $orderLines[] = "• PO {$poNum} ({$custName}): " . formatINR($ord->total_amount) . " (" . number_format($orderQty) . " KG)";
+                $orderLines[] = "• PO {$poNum} ({$custName}): ".formatINR($ord->total_amount).' ('.number_format($orderQty).' KG)';
             }
 
             // 4. TOMORROW'S RECEIVABLES RADAR
@@ -129,18 +129,18 @@ class SendDailyDigestCommand extends Command
 
             foreach ($tomorrowInvoices as $inv) {
                 $custName = $inv->customer?->company_name ?? 'Customer';
-                $tomorrowLines[] = "• Inv {$inv->invoice_number} ({$custName}): " . formatINR($inv->balance_due);
+                $tomorrowLines[] = "• Inv {$inv->invoice_number} ({$custName}): ".formatINR($inv->balance_due);
             }
 
             // COMPOSE EXECUTIVE BRIEFING TEXT (WhatsApp-ready formatting)
             $text = "🌙 *EVENING EXECUTIVE DIGEST* — {$tenant->name}\n";
-            $text .= "📅 " . $today->format('l, d F Y') . " (7:00 PM Daily Briefing)\n";
+            $text .= '📅 '.$today->format('l, d F Y')." (7:00 PM Daily Briefing)\n";
             $text .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
             // Dispatches
             $text .= "🚚 *TODAY'S FACTORY DISPATCHES*\n";
             if ($todayShipments->isNotEmpty()) {
-                $text .= "• Total Loaded: " . number_format($totalDispatchedKg) . " KG across " . $todayShipments->count() . " consignment(s)\n";
+                $text .= '• Total Loaded: '.number_format($totalDispatchedKg).' KG across '.$todayShipments->count()." consignment(s)\n";
                 foreach ($shipmentLines as $sl) {
                     $text .= "  {$sl}\n";
                 }
@@ -152,7 +152,7 @@ class SendDailyDigestCommand extends Command
             // Collections
             $text .= "💰 *TODAY'S CASH COLLECTIONS (RTGS/BANK)*\n";
             if ($todayReceipts->isNotEmpty()) {
-                $text .= "• Total Received: " . formatINR($totalCollected) . " across " . $todayReceipts->count() . " receipt(s)\n";
+                $text .= '• Total Received: '.formatINR($totalCollected).' across '.$todayReceipts->count()." receipt(s)\n";
                 foreach ($receiptLines as $rl) {
                     $text .= "  {$rl}\n";
                 }
@@ -164,7 +164,7 @@ class SendDailyDigestCommand extends Command
             // Sales Orders
             $text .= "📝 *NEW CONTRACTS BOOKED TODAY*\n";
             if ($todayOrders->isNotEmpty()) {
-                $text .= "• Total Booked: " . formatINR($totalOrderValue) . " (" . number_format($totalOrderQty) . " KG)\n";
+                $text .= '• Total Booked: '.formatINR($totalOrderValue).' ('.number_format($totalOrderQty)." KG)\n";
                 foreach ($orderLines as $ol) {
                     $text .= "  {$ol}\n";
                 }
@@ -176,7 +176,7 @@ class SendDailyDigestCommand extends Command
             // Tomorrow's Radar
             $text .= "🚨 *TOMORROW'S RECEIVABLES RADAR*\n";
             if ($tomorrowInvoices->isNotEmpty()) {
-                $text .= "• Total Due Tomorrow: " . formatINR($totalDueTomorrow) . " (" . $tomorrowInvoices->count() . " invoice(s))\n";
+                $text .= '• Total Due Tomorrow: '.formatINR($totalDueTomorrow).' ('.$tomorrowInvoices->count()." invoice(s))\n";
                 foreach ($tomorrowLines as $tl) {
                     $text .= "  {$tl}\n";
                 }
@@ -192,8 +192,8 @@ class SendDailyDigestCommand extends Command
             ActivityLog::withoutGlobalScopes()->create([
                 'tenant_id' => $tenant->id,
                 'activity_type' => 'NOTE',
-                'title' => "🌙 7:00 PM Evening Digest Generated",
-                'description' => "Dispatched: " . number_format($totalDispatchedKg) . " KG | Collected: " . formatINR($totalCollected) . " | Booked: " . formatINR($totalOrderValue),
+                'title' => '🌙 7:00 PM Evening Digest Generated',
+                'description' => 'Dispatched: '.number_format($totalDispatchedKg).' KG | Collected: '.formatINR($totalCollected).' | Booked: '.formatINR($totalOrderValue),
             ]);
         }
 

@@ -10,7 +10,7 @@ test('unauthenticated users are redirected to login', function () {
 
 test('authenticated users can access the dashboard', function () {
     $user = User::first();
-    if (!$user) {
+    if (! $user) {
         $user = User::factory()->create();
     }
 

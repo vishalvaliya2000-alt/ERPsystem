@@ -61,7 +61,7 @@ class DocumentTransactionService
         $originalName = $file->getClientOriginalName();
         $ext = $file->getClientOriginalExtension();
         $safePoNum = Str::slug($poNumber, '_');
-        $storageFilename = "doc_{$tenantId}_PO_{$safePoNum}_" . time() . '.' . $ext;
+        $storageFilename = "doc_{$tenantId}_PO_{$safePoNum}_".time().'.'.$ext;
 
         $storedPath = $file->storeAs("documents/{$tenantId}", $storageFilename, 'public');
 
@@ -134,7 +134,7 @@ class DocumentTransactionService
         $originalName = $file->getClientOriginalName();
         $ext = $file->getClientOriginalExtension();
         $safeLrNum = Str::slug($lrNumber, '_');
-        $storageFilename = "doc_{$tenantId}_LR_{$safeLrNum}_" . time() . '.' . $ext;
+        $storageFilename = "doc_{$tenantId}_LR_{$safeLrNum}_".time().'.'.$ext;
 
         $storedPath = $file->storeAs("documents/{$tenantId}", $storageFilename, 'public');
 
@@ -196,7 +196,7 @@ class DocumentTransactionService
         $originalName = $file->getClientOriginalName();
         $ext = $file->getClientOriginalExtension();
         $safeInvNum = Str::slug($invNumber, '_');
-        $storageFilename = "doc_{$tenantId}_INV_{$safeInvNum}_supp_" . time() . '.' . $ext;
+        $storageFilename = "doc_{$tenantId}_INV_{$safeInvNum}_supp_".time().'.'.$ext;
 
         $storedPath = $file->storeAs("documents/{$tenantId}", $storageFilename, 'public');
 
@@ -204,7 +204,7 @@ class DocumentTransactionService
             $document = BusinessDocument::create([
                 'tenant_id' => $tenantId,
                 'document_type' => 'INVOICE',
-                'document_number' => $invNumber . '-SUPP',
+                'document_number' => $invNumber.'-SUPP',
                 'document_date' => $invoice->invoice_date ?: Carbon::now(),
                 'due_date' => $invoice->due_date,
                 'customer_id' => $invoice->customer_id,
@@ -251,9 +251,9 @@ class DocumentTransactionService
      */
     public function generateAndStoreInvoicePdf(Invoice $invoice): BusinessDocument
     {
-        $invoice->loadMissing(['customer', 'items.product', 'items.salesOrderItem', 'salesOrder', 'commercialShipment', 'tenant']);
-        $tenant = $invoice->tenant ?: TenantManager::getTenant();
-        $tenantId = $invoice->tenant_id ?: ($tenant?->id ?: 1);
+        $invoice->loadMissing(['customer', 'items.product', 'items.salesOrderItem', 'salesOrder', 'commercialShipment']);
+        $tenant = tenant() ?: TenantManager::getTenant();
+        $tenantId = $tenant?->id ?: 1;
         $invNumber = strtoupper(trim($invoice->invoice_number));
 
         // Render PDF using DomPDF
@@ -337,7 +337,7 @@ class DocumentTransactionService
             'file_size' => $fileSize,
             'mime_type' => 'application/pdf',
             'uploaded_by_user_id' => auth()->id(),
-            'change_note' => "Official ERP-generated Tax Invoice PDF",
+            'change_note' => 'Official ERP-generated Tax Invoice PDF',
             'is_active' => true,
         ]);
 

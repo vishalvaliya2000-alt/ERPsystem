@@ -1,17 +1,8 @@
 <?php
 
-use App\Models\Customer;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\PaymentReceipt;
-use App\Models\Product;
-use App\Models\SalesOrder;
-use App\Models\SalesOrderItem;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\DashboardAnalyticsService;
 use App\Services\TenantManager;
-use Carbon\Carbon;
 
 beforeEach(function () {
     $this->tenant = Tenant::first() ?? Tenant::create([

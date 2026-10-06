@@ -2,18 +2,17 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\ProductCategory;
-use App\Models\Product;
-use App\Models\Tenant;
+use App\Models\CommercialShipment;
 use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
-use App\Models\Invoice;
-use App\Models\CommercialShipment;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 
 class TestDatabaseSeeder extends Seeder
 {
@@ -83,7 +82,7 @@ class TestDatabaseSeeder extends Seeder
                 'customer_id' => $customerA->id,
                 'po_number' => 'DEMO-PO-1',
                 'total_amount' => 1200.0,
-                'status' => 'CONFIRMED'
+                'status' => 'CONFIRMED',
             ]
         );
 
@@ -121,7 +120,7 @@ class TestDatabaseSeeder extends Seeder
                 'due_date' => now()->addDays(30),
                 'total_amount' => 1200.0,
                 'balance_due' => 1200.0,
-                'status' => 'ISSUED'
+                'status' => 'ISSUED',
             ]
         );
     }

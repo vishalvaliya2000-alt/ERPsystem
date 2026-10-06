@@ -4,12 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\BusinessDocument;
 use App\Models\CommercialShipment;
-use App\Models\Customer;
 use App\Models\DocumentVersion;
 use App\Models\Invoice;
-use App\Models\Product;
 use App\Models\SalesOrder;
-use App\Models\SalesOrderItem;
 use App\Services\DocumentParserService;
 use App\Services\TenantManager;
 use Carbon\Carbon;
@@ -95,8 +92,8 @@ class DocumentController extends Controller
             $originalName = $file->getClientOriginalName();
             $ext = $file->getClientOriginalExtension();
             $safeDocNum = Str::slug($validated['document_number'], '_');
-            $storageFilename = "doc_{$tenantId}_{$validated['document_type']}_{$safeDocNum}_" . time() . '.' . $ext;
-            
+            $storageFilename = "doc_{$tenantId}_{$validated['document_type']}_{$safeDocNum}_".time().'.'.$ext;
+
             // Store file securely
             $storedPath = $file->storeAs("documents/{$tenantId}", $storageFilename, 'public');
 
@@ -106,7 +103,7 @@ class DocumentController extends Controller
                 'document_type' => $validated['document_type'],
                 'document_number' => strtoupper(trim($validated['document_number'])),
                 'document_date' => Carbon::parse($validated['document_date']),
-                'due_date' => !empty($validated['due_date']) ? Carbon::parse($validated['due_date']) : null,
+                'due_date' => ! empty($validated['due_date']) ? Carbon::parse($validated['due_date']) : null,
                 'customer_id' => $validated['customer_id'],
                 'sales_order_id' => $validated['sales_order_id'] ?? null,
                 'commercial_shipment_id' => $validated['commercial_shipment_id'] ?? null,
@@ -143,7 +140,7 @@ class DocumentController extends Controller
             // 3. Smart Link (No Creation)
             // For PO: Optionally link SalesOrder
             if ($validated['document_type'] === 'PO') {
-                if (!empty($validated['sales_order_id'])) {
+                if (! empty($validated['sales_order_id'])) {
                     // Link existing Sales Order
                     $so = SalesOrder::find($validated['sales_order_id']);
                     if ($so && empty($so->po_number)) {
@@ -157,7 +154,7 @@ class DocumentController extends Controller
 
             // For Invoice: Optionally sync with Invoices table
             if ($validated['document_type'] === 'INVOICE') {
-                if (!empty($validated['invoice_id'])) {
+                if (! empty($validated['invoice_id'])) {
                     // Already linked
                 } else {
                     // Check if invoice exists by number
@@ -173,7 +170,7 @@ class DocumentController extends Controller
 
             // For LR: Optionally sync with CommercialShipment
             if ($validated['document_type'] === 'LR') {
-                if (!empty($validated['commercial_shipment_id'])) {
+                if (! empty($validated['commercial_shipment_id'])) {
                     $shipment = CommercialShipment::find($validated['commercial_shipment_id']);
                     if ($shipment && empty($shipment->proof_document_url)) {
                         $shipment->update(['proof_document_url' => $storedPath]);
@@ -195,17 +192,18 @@ class DocumentController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to save document: ' . $e->getMessage(), [
+            Log::error('Failed to save document: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->except(['file']),
             ]);
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to save document: ' . $e->getMessage(),
+                    'message' => 'Failed to save document: '.$e->getMessage(),
                 ], 500);
             }
-            return back()->with('error', 'Failed to save document: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Failed to save document: '.$e->getMessage())->withInput();
         }
     }
 
@@ -245,7 +243,7 @@ class DocumentController extends Controller
                 'is_image' => $doc->activeVersion?->is_image ?? false,
                 'is_excel' => $doc->activeVersion?->is_excel ?? false,
                 'connected_chain' => $doc->connected_chain,
-                'versions' => $doc->versions->map(fn($v) => [
+                'versions' => $doc->versions->map(fn ($v) => [
                     'id' => $v->id,
                     'version_number' => $v->version_number,
                     'file_name' => $v->file_name,
@@ -276,7 +274,7 @@ class DocumentController extends Controller
         }
 
         $path = $version->file_path;
-        if (!Storage::disk('public')->exists($path)) {
+        if (! Storage::disk('public')->exists($path)) {
             abort(404, 'Document file not found in storage.');
         }
 
@@ -285,7 +283,7 @@ class DocumentController extends Controller
 
         return response()->file($filePath, [
             'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="' . addslashes($version->file_name) . '"',
+            'Content-Disposition' => 'inline; filename="'.addslashes($version->file_name).'"',
         ]);
     }
 
@@ -305,7 +303,7 @@ class DocumentController extends Controller
         }
 
         $path = $version->file_path;
-        if (!Storage::disk('public')->exists($path)) {
+        if (! Storage::disk('public')->exists($path)) {
             abort(404, 'Document file not found in storage.');
         }
 
@@ -330,7 +328,7 @@ class DocumentController extends Controller
         $ext = $file->getClientOriginalExtension();
         $nextVersion = $doc->current_version + 1;
         $safeDocNum = Str::slug($doc->document_number, '_');
-        $storageFilename = "doc_{$tenantId}_{$doc->document_type}_{$safeDocNum}_v{$nextVersion}_" . time() . '.' . $ext;
+        $storageFilename = "doc_{$tenantId}_{$doc->document_type}_{$safeDocNum}_v{$nextVersion}_".time().'.'.$ext;
 
         $storedPath = $file->storeAs("documents/{$tenantId}", $storageFilename, 'public');
 
@@ -358,10 +356,11 @@ class DocumentController extends Controller
 
             return back()->with('success', "✓ Version {$nextVersion} of {$doc->type_label} #{$doc->document_number} uploaded successfully!");
         } catch (\Throwable $e) {
-            Log::error("Failed to upload new version for document #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to upload new version for document #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to upload new version: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to upload new version: '.$e->getMessage());
         }
     }
 
@@ -387,10 +386,11 @@ class DocumentController extends Controller
 
             return back()->with('success', "✓ Document #{$num} removed successfully.");
         } catch (\Throwable $e) {
-            Log::error("Failed to delete document #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete document #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete document: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete document: '.$e->getMessage());
         }
     }
 
@@ -407,7 +407,7 @@ class DocumentController extends Controller
         $dup = $this->parser->checkDuplicate($type, $number, $customerId, $tenantId);
 
         return response()->json([
-            'is_duplicate' => !empty($dup),
+            'is_duplicate' => ! empty($dup),
             'duplicate' => $dup,
             'document_number' => $number,
         ]);

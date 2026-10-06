@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\Customer;
+use App\Models\Lead;
+use App\Models\Product;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
-use App\Models\Customer;
-use App\Models\Product;
-use App\Models\Lead;
-use App\Models\FollowupTask;
+use App\Models\SalesOrder;
+use App\Models\SalesOrderItem;
+use App\Services\CompanyFirmContext;
 use App\Services\TenantManager;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -32,6 +34,7 @@ class QuotationController extends Controller
     public function show($id)
     {
         $quotation = Quotation::with(['customer', 'lead', 'items.product'])->findOrFail($id);
+
         return view('quotations.show', compact('quotation'));
     }
 
@@ -61,11 +64,12 @@ class QuotationController extends Controller
 
         $tenant = TenantManager::getTenant();
         $prefix = $tenant ? $tenant->quotation_prefix : 'QUO';
-        $quoteNumber = $prefix . '-' . date('Y') . '-' . rand(100, 999);
+        $quoteNumber = $prefix.'-'.date('Y').'-'.rand(100, 999);
 
         DB::beginTransaction();
         try {
             $quotation = Quotation::create([
+                'firm_id' => CompanyFirmContext::getCurrentFirmId(),
                 'quotation_number' => $quoteNumber,
                 'quotation_date' => Carbon::today(),
                 'valid_until' => Carbon::today()->addDays(14),
@@ -100,11 +104,12 @@ class QuotationController extends Controller
             return redirect()->route('quotations.show', $quotation->id)->with('success', "✓ Quotation {$quotation->quotation_number} generated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to generate quotation: ' . $e->getMessage(), [
+            Log::error('Failed to generate quotation: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to generate quotation: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to generate quotation: '.$e->getMessage());
         }
     }
 
@@ -131,11 +136,12 @@ class QuotationController extends Controller
             return back()->with('success', "✓ Quotation {$quotation->quotation_number} updated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update quotation #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update quotation #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update quotation: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update quotation: '.$e->getMessage());
         }
     }
 
@@ -153,10 +159,11 @@ class QuotationController extends Controller
             return redirect()->route('quotations.index')->with('success', "✓ Quotation {$num} deleted successfully.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete quotation #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete quotation #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete quotation: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete quotation: '.$e->getMessage());
         }
     }
 
@@ -164,21 +171,21 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::with('items')->findOrFail($id);
 
-        if (!$quotation->customer_id && !$request->has('customer_id')) {
+        if (! $quotation->customer_id && ! $request->has('customer_id')) {
             return back()->with('error', 'Cannot convert to Sales Order: Quotation must be linked to a Customer Account first.');
         }
 
         $customerId = $request->input('customer_id', $quotation->customer_id);
 
         $tenantId = TenantManager::getTenantId();
-        $orderNo = 'SO-' . date('Ymd') . '-' . rand(100, 999);
-        
+        $orderNo = 'SO-'.date('Ymd').'-'.rand(100, 999);
+
         DB::beginTransaction();
         try {
-            $order = \App\Models\SalesOrder::create([
+            $order = SalesOrder::create([
                 'tenant_id' => $tenantId,
                 'order_number' => $orderNo,
-                'po_number' => 'PO-' . $quotation->quotation_number,
+                'po_number' => 'PO-'.$quotation->quotation_number,
                 'po_date' => Carbon::today(),
                 'customer_id' => $customerId,
                 'order_date' => Carbon::today(),
@@ -192,7 +199,7 @@ class QuotationController extends Controller
             ]);
 
             foreach ($quotation->items as $it) {
-                \App\Models\SalesOrderItem::create([
+                SalesOrderItem::create([
                     'tenant_id' => $tenantId,
                     'sales_order_id' => $order->id,
                     'product_id' => $it->product_id,
@@ -212,11 +219,12 @@ class QuotationController extends Controller
             return redirect()->route('orders.index')->with('success', "✓ Quotation {$quotation->quotation_number} successfully converted to Sales Order {$orderNo}.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to convert quotation #{$id} to order: " . $e->getMessage(), [
+            Log::error("Failed to convert quotation #{$id} to order: ".$e->getMessage(), [
                 'exception' => $e,
                 'customer_id' => $customerId,
             ]);
-            return back()->with('error', 'Failed to convert quotation to order: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to convert quotation to order: '.$e->getMessage());
         }
     }
 }

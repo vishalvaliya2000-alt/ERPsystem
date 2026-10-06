@@ -2,15 +2,18 @@
 
 namespace App\Livewire\Dashboard;
 
-use Livewire\Component;
 use App\Services\DashboardAnalyticsService;
 use App\Services\TenantManager;
+use Livewire\Component;
 
 class ExecutivePulse extends Component
 {
     public string $period = 'this_fy';
+
     public string $selectedFy = '';
+
     public string $selectedCustomer = 'all';
+
     public string $selectedProduct = 'all';
 
     public function mount(DashboardAnalyticsService $service): void

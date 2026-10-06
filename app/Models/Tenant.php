@@ -2,93 +2,87 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Stancl\Tenancy\Contracts\TenantWithDatabase;
+use Stancl\Tenancy\Database\Concerns\HasDatabase;
+use Stancl\Tenancy\Database\Concerns\HasDomains;
+use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
 
-class Tenant extends Model
+class Tenant extends BaseTenant implements TenantWithDatabase
 {
-    protected $fillable = [
-        'name',
-        'slug',
-        'tagline',
-        'logo_url',
-        'industry',
-        'currency_code',
-        'currency_symbol',
-        'tax_id_label',
-        'tax_id_number',
-        'pan_number',
-        'iec_code',
-        'lut_arn',
-        'fssai_number',
-        'email',
-        'phone',
-        'website',
-        'address_line',
-        'city',
-        'state',
-        'pincode',
-        'country',
-        'bank_name',
-        'bank_account_number',
-        'bank_ifsc_code',
-        'bank_swift_code',
-        'bank_branch',
-        'invoice_prefix',
-        'quotation_prefix',
-        'po_prefix',
-        'shipment_prefix',
-        'plan',
-        'is_active',
-        'settings',
-    ];
+    use HasDatabase, HasDomains;
 
-    protected $casts = [
-        'is_active' => 'boolean',
-        'settings' => 'array',
-    ];
+    public $incrementing = false;
 
-    public function users(): BelongsToMany
+    protected $keyType = 'string';
+
+    public function getIncrementing(): bool
     {
-        return $this->belongsToMany(User::class, 'tenant_user')
-            ->withPivot('role', 'is_default')
-            ->withTimestamps();
+        return false;
     }
 
-    public function customers(): HasMany
+    public function getKeyType(): string
     {
-        return $this->hasMany(Customer::class);
+        return 'string';
     }
 
-    public function salesOrders(): HasMany
+    public static function getCustomColumns(): array
     {
-        return $this->hasMany(SalesOrder::class);
+        return [
+            'id',
+            'name',
+            'owner_name',
+            'owner_email',
+            'owner_phone',
+            'gstin',
+            'plan',
+            'status',
+            'created_at',
+            'updated_at',
+        ];
     }
 
-    public function invoices(): HasMany
+    public function getSubdomainAttribute(): string
     {
-        return $this->hasMany(Invoice::class);
+        return $this->id;
     }
 
-    public function shipments(): HasMany
+    public function getPrimaryDomainAttribute(): ?string
     {
-        return $this->hasMany(CommercialShipment::class);
+        return $this->attributes['primary_domain']
+            ?? ($this->data['primary_domain'] ?? null)
+            ?? $this->domains()->first()?->domain;
     }
 
-    public function products(): HasMany
+    public function isSuspended(): bool
     {
-        return $this->hasMany(Product::class);
+        return $this->status === 'suspended';
     }
 
-    public function isExportCompany(): bool
+    public function isActive(): bool
     {
-        return !empty($this->iec_code) || in_array($this->currency_code, ['USD', 'EUR', 'GBP', 'AED']);
+        return $this->status === 'active';
     }
 
     public function getFullAddressAttribute(): string
     {
-        $parts = array_filter([$this->address_line, $this->city, $this->state, $this->pincode, $this->country]);
+        $parts = array_filter([
+            $this->address_line ?? null,
+            $this->city ?? null,
+            $this->state ?? 'Gujarat',
+            $this->pincode ?? null,
+            $this->country ?? 'India',
+        ]);
+
         return implode(', ', $parts);
+    }
+
+    public function isExportCompany(): bool
+    {
+        return (bool) ($this->data['is_export_company'] ?? false);
+    }
+
+    public function users()
+    {
+        return User::query();
     }
 }

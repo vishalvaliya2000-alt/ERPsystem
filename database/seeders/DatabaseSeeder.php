@@ -2,17 +2,18 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\ProductCategory;
 use App\Models\Product;
+use App\Models\ProductCategory;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
         // 0. Default Tenant
-        $tenant = \App\Models\Tenant::firstOrCreate(
+        $tenant = Tenant::firstOrCreate(
             ['id' => 1],
             [
                 'name' => 'Real Dehydrates ERP',

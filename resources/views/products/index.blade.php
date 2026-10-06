@@ -23,6 +23,12 @@
                     class="px-3.5 py-2 text-xs border border-neutral-300 rounded-xl focus:ring-2 focus:ring-[#091315] w-full sm:w-56 font-medium">
             </form>
 
+            <a href="{{ route('products.bulk-update.index') }}"
+                class="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-extrabold text-xs rounded-full transition-all flex items-center gap-2 border border-neutral-300 shrink-0">
+                <span>⚡</span>
+                <span>Bulk Update</span>
+            </a>
+
             <button @click="openAddModal()"
                 class="px-4 py-2.5 bg-[#091315] hover:bg-black text-[#D7FF53] font-extrabold text-xs rounded-full shadow-2xs transition-all flex items-center gap-2 cursor-pointer border border-neutral-800 shrink-0">
                 <span>➕</span>

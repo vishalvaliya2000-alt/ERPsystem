@@ -10,10 +10,10 @@ class MasterWorkbookExport implements Export, WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new CustomersExport(),
-            new ProductsExport(),
-            new SalesOrdersExport(),
-            new InvoicesExport(),
+            new CustomersExport,
+            new ProductsExport,
+            new SalesOrdersExport,
+            new InvoicesExport,
         ];
     }
 }

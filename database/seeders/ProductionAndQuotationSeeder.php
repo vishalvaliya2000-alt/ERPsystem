@@ -2,15 +2,14 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\InventoryStock;
+use App\Models\Lead;
 use App\Models\Product;
 use App\Models\ProductionBatch;
-use App\Models\InventoryStock;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
-use App\Models\Lead;
-use App\Models\Customer;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class ProductionAndQuotationSeeder extends Seeder
 {
@@ -34,7 +33,7 @@ class ProductionAndQuotationSeeder extends Seeder
             // Production Batch for key products
             if (in_array($prod->product_code, ['GP001', 'WOP001', 'POP001', 'GF001'])) {
                 ProductionBatch::updateOrCreate(
-                    ['batch_number' => "B-{$prod->product_code}-" . date('my')],
+                    ['batch_number' => "B-{$prod->product_code}-".date('my')],
                     [
                         'product_id' => $prod->id,
                         'production_date' => Carbon::now()->subDays(5),
@@ -42,7 +41,7 @@ class ProductionAndQuotationSeeder extends Seeder
                         'available_qty' => 7500,
                         'moisture_percentage' => 4.8,
                         'sensory_grade' => 'Export Grade A+',
-                        'raw_lot_number' => 'LOT-BHAV-' . rand(100, 999),
+                        'raw_lot_number' => 'LOT-BHAV-'.rand(100, 999),
                         'status' => 'QUALITY_APPROVED',
                         'notes' => 'Passed 100-mesh sieve and microbiological evaluation.',
                     ]

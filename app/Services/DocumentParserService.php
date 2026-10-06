@@ -10,6 +10,7 @@ use App\Models\SalesOrder;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class DocumentParserService
 {
@@ -31,7 +32,7 @@ class DocumentParserService
             $rawText = $this->extractTextFromSpreadsheet($file->getRealPath(), $ext);
         } else {
             // Images / fallback
-            $rawText = $originalName . ' ' . pathinfo($originalName, PATHINFO_FILENAME);
+            $rawText = $originalName.' '.pathinfo($originalName, PATHINFO_FILENAME);
         }
 
         // 2. Determine Document Type (PO, INVOICE, LR)
@@ -89,7 +90,7 @@ class DocumentParserService
     protected function extractTextFromPdf(string $path): string
     {
         $content = @file_get_contents($path);
-        if (!$content) {
+        if (! $content) {
             return '';
         }
 
@@ -99,7 +100,7 @@ class DocumentParserService
         if (preg_match_all('/BT[\s\S]*?ET/', $content, $btMatches)) {
             foreach ($btMatches[0] as $btBlock) {
                 if (preg_match_all('/\((.*?)\)[\s]*T[jJ]/', $btBlock, $tjMatches)) {
-                    $text .= ' ' . implode(' ', $tjMatches[1]);
+                    $text .= ' '.implode(' ', $tjMatches[1]);
                 }
             }
         }
@@ -114,15 +115,15 @@ class DocumentParserService
                 if ($uncompressed) {
                     // Extract strings in parentheses
                     if (preg_match_all('/\((.*?)\)/', $uncompressed, $parenMatches)) {
-                        $cleaned = array_filter($parenMatches[1], fn($s) => strlen(trim($s)) > 1 && !preg_match('/^[^\x20-\x7E]+$/', $s));
-                        $text .= ' ' . implode(' ', $cleaned);
+                        $cleaned = array_filter($parenMatches[1], fn ($s) => strlen(trim($s)) > 1 && ! preg_match('/^[^\x20-\x7E]+$/', $s));
+                        $text .= ' '.implode(' ', $cleaned);
                     }
                     // Extract strings in hex brackets <48656c6c6f>
                     if (preg_match_all('/<([0-9A-Fa-f]{4,})>/', $uncompressed, $hexMatches)) {
                         foreach ($hexMatches[1] as $hex) {
                             $decoded = @hex2bin($hex);
                             if ($decoded && ctype_print($decoded)) {
-                                $text .= ' ' . $decoded;
+                                $text .= ' '.$decoded;
                             }
                         }
                     }
@@ -131,7 +132,7 @@ class DocumentParserService
         }
 
         // Clean octal codes and escape slashes
-        $text = preg_replace_callback('/\\\\([0-7]{1,3})/', fn($m) => chr(octdec($m[1])), $text);
+        $text = preg_replace_callback('/\\\\([0-7]{1,3})/', fn ($m) => chr(octdec($m[1])), $text);
         $text = str_replace(['\\(', '\\)', '\\\\'], ['(', ')', '\\'], $text);
         $text = preg_replace('/\s+/', ' ', $text);
 
@@ -144,22 +145,23 @@ class DocumentParserService
     protected function extractTextFromSpreadsheet(string $path, string $ext): string
     {
         try {
-            if (class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
-                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            if (class_exists(IOFactory::class)) {
+                $spreadsheet = IOFactory::load($path);
                 $sheet = $spreadsheet->getActiveSheet();
                 $rows = $sheet->toArray(null, true, true, true);
 
                 $lines = [];
                 foreach ($rows as $row) {
                     $rowValues = array_filter(array_map('trim', $row));
-                    if (!empty($rowValues)) {
+                    if (! empty($rowValues)) {
                         $lines[] = implode(' | ', $rowValues);
                     }
                 }
+
                 return implode("\n", $lines);
             }
         } catch (\Throwable $e) {
-            Log::warning("Spreadsheet extraction fallback: " . $e->getMessage());
+            Log::warning('Spreadsheet extraction fallback: '.$e->getMessage());
         }
 
         return '';
@@ -170,11 +172,11 @@ class DocumentParserService
      */
     protected function detectDocumentType(string $text, string $filename, ?string $hint = null): string
     {
-        if (!empty($hint) && in_array(strtoupper($hint), ['PO', 'INVOICE', 'LR'])) {
+        if (! empty($hint) && in_array(strtoupper($hint), ['PO', 'INVOICE', 'LR'])) {
             return strtoupper($hint);
         }
 
-        $combined = strtolower($text . ' ' . $filename);
+        $combined = strtolower($text.' '.$filename);
 
         if (preg_match('/(lorry\s*receipt|consignment\s*note|bilty|transporter\s*copy|lr\s*no|goods\s*consignment)/i', $combined)) {
             return 'LR';
@@ -235,7 +237,7 @@ class DocumentParserService
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $text, $matches)) {
                 $num = trim($matches[1]);
-                if (strlen($num) >= 3 && !preg_match('/^(date|dated|page|total)$/i', $num)) {
+                if (strlen($num) >= 3 && ! preg_match('/^(date|dated|page|total)$/i', $num)) {
                     return strtoupper($num);
                 }
             }
@@ -253,7 +255,8 @@ class DocumentParserService
             'LR' => 'LR',
             default => 'DOC',
         };
-        return $prefix . '-' . date('Ymd') . '-' . rand(100, 999);
+
+        return $prefix.'-'.date('Ymd').'-'.rand(100, 999);
     }
 
     /**
@@ -283,7 +286,7 @@ class DocumentParserService
                 }
             }
 
-            if (!empty($foundDates)) {
+            if (! empty($foundDates)) {
                 $dates['document_date'] = $foundDates[0];
                 if (count($foundDates) > 1) {
                     $dates['due_date'] = $foundDates[count($foundDates) - 1];
@@ -326,7 +329,7 @@ class DocumentParserService
             }
 
             // Customer code match
-            if (!empty($code) && stripos($text, $code) !== false) {
+            if (! empty($code) && stripos($text, $code) !== false) {
                 return [
                     'id' => $c->id,
                     'company_name' => $c->company_name,
@@ -340,7 +343,7 @@ class DocumentParserService
             }
 
             // Word token match
-            $words = array_filter(explode(' ', preg_replace('/[^a-zA-Z0-9 ]/', '', $name)), fn($w) => strlen($w) > 3);
+            $words = array_filter(explode(' ', preg_replace('/[^a-zA-Z0-9 ]/', '', $name)), fn ($w) => strlen($w) > 3);
             $matchedWords = 0;
             foreach ($words as $w) {
                 if (stripos($text, $w) !== false) {
@@ -370,6 +373,7 @@ class DocumentParserService
 
         // Fallback: Return first active customer as auto-suggestion
         $firstCust = $customers->first();
+
         return [
             'id' => $firstCust->id,
             'company_name' => $firstCust->company_name,
@@ -395,16 +399,16 @@ class DocumentParserService
             $code = $p->product_code;
 
             // Search product in text
-            if (stripos($text, $pName) !== false || (!empty($code) && stripos($text, $code) !== false)) {
+            if (stripos($text, $pName) !== false || (! empty($code) && stripos($text, $code) !== false)) {
                 // Try to find quantity associated with this product in surrounding text
                 $qty = 1000.0;
                 $rate = (float) ($p->standard_rate ?: 220.0);
 
-                if (preg_match('/' . preg_quote($pName, '/') . '[\s\S]{0,60}?(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:KG|KGS|MT|BAGS|QTL)/i', $text, $qMatch)) {
+                if (preg_match('/'.preg_quote($pName, '/').'[\s\S]{0,60}?(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:KG|KGS|MT|BAGS|QTL)/i', $text, $qMatch)) {
                     $qty = (float) str_replace(',', '', $qMatch[1]);
                 }
 
-                if (preg_match('/' . preg_quote($pName, '/') . '[\s\S]{0,60}?(?:@|Rate|Price|₹|INR)?\s*(\d+(?:\.\d+)?)\s*(?:\/KG|\/kg)?/i', $text, $rMatch)) {
+                if (preg_match('/'.preg_quote($pName, '/').'[\s\S]{0,60}?(?:@|Rate|Price|₹|INR)?\s*(\d+(?:\.\d+)?)\s*(?:\/KG|\/kg)?/i', $text, $rMatch)) {
                     $rate = (float) $rMatch[1];
                 }
 
@@ -493,7 +497,7 @@ class DocumentParserService
             $terms = ucwords(trim($matches[1]));
         }
 
-        $delivery = $matchedCustomer ? ($matchedCustomer['city'] . ', ' . $matchedCustomer['state']) : 'Customer Godown';
+        $delivery = $matchedCustomer ? ($matchedCustomer['city'].', '.$matchedCustomer['state']) : 'Customer Godown';
         if (preg_match('/(?:Delivery\s*To|Ship\s*To|Consignee\s*Address|Destination)[:\s]*([^\r\n]{5,60})/i', $text, $matches)) {
             $delivery = trim($matches[1]);
         }
@@ -529,7 +533,7 @@ class DocumentParserService
                 'customer_name' => $existingDoc->customer?->company_name ?? 'N/A',
                 'created_at' => $existingDoc->created_at->format('d M Y'),
                 'current_version' => $existingDoc->current_version,
-                'message' => "Possible duplicate: {$docType} #{$cleanNumber} is already registered in the Document Centre for " . ($existingDoc->customer?->company_name ?? 'this tenant') . ".",
+                'message' => "Possible duplicate: {$docType} #{$cleanNumber} is already registered in the Document Centre for ".($existingDoc->customer?->company_name ?? 'this tenant').'.',
             ];
         }
 
@@ -550,7 +554,7 @@ class DocumentParserService
                     'order_number' => $existingOrder->order_number,
                     'customer_name' => $existingOrder->customer?->company_name ?? 'N/A',
                     'created_at' => $existingOrder->created_at->format('d M Y'),
-                    'message' => "Possible duplicate PO: Order #{$existingOrder->order_number} already uses PO #{$cleanNumber} for " . ($existingOrder->customer?->company_name ?? 'Client') . ".",
+                    'message' => "Possible duplicate PO: Order #{$existingOrder->order_number} already uses PO #{$cleanNumber} for ".($existingOrder->customer?->company_name ?? 'Client').'.',
                 ];
             }
         }
@@ -569,7 +573,7 @@ class DocumentParserService
                     'invoice_number' => $existingInv->invoice_number,
                     'customer_name' => $existingInv->customer?->company_name ?? 'N/A',
                     'created_at' => $existingInv->created_at->format('d M Y'),
-                    'message' => "Possible duplicate Invoice: Tax Invoice #{$cleanNumber} already exists in Accounting for " . ($existingInv->customer?->company_name ?? 'Client') . ".",
+                    'message' => "Possible duplicate Invoice: Tax Invoice #{$cleanNumber} already exists in Accounting for ".($existingInv->customer?->company_name ?? 'Client').'.',
                 ];
             }
         }
@@ -598,7 +602,7 @@ class DocumentParserService
                 ->take(5)
                 ->get();
 
-            $suggestions['open_orders'] = $orders->map(fn($o) => [
+            $suggestions['open_orders'] = $orders->map(fn ($o) => [
                 'id' => $o->id,
                 'order_number' => $o->order_number,
                 'po_number' => $o->po_number,
@@ -616,7 +620,7 @@ class DocumentParserService
                 ->take(5)
                 ->get();
 
-            $suggestions['open_invoices'] = $invoices->map(fn($inv) => [
+            $suggestions['open_invoices'] = $invoices->map(fn ($inv) => [
                 'id' => $inv->id,
                 'invoice_number' => $inv->invoice_number,
                 'total_amount' => (float) $inv->total_amount,
@@ -639,7 +643,7 @@ class DocumentParserService
     {
         $score = 20;
 
-        if (!empty($docNumber) && !str_starts_with($docNumber, 'DOC-') && !str_starts_with($docNumber, 'PO-2026') && !str_starts_with($docNumber, 'INV-2026')) {
+        if (! empty($docNumber) && ! str_starts_with($docNumber, 'DOC-') && ! str_starts_with($docNumber, 'PO-2026') && ! str_starts_with($docNumber, 'INV-2026')) {
             $score += 25;
         }
 
@@ -649,7 +653,7 @@ class DocumentParserService
             $score += 15;
         }
 
-        if (!empty($items)) {
+        if (! empty($items)) {
             $score += 15;
         }
 

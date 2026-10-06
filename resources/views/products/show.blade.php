@@ -266,6 +266,150 @@
         @endif
     </div>
 
+    <!-- Multiple Pricing Tiers / Quantity Slabs Section -->
+    <div class="bg-white rounded-3xl border border-neutral-200/80 p-5 sm:p-7 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-neutral-100 pb-4">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🏷️</span>
+                <div>
+                    <h2 class="font-black text-base text-neutral-900 font-display">Multiple Pricing Tiers & Volume Slabs</h2>
+                    <p class="text-[11px] text-neutral-500">Tier rates applied automatically when quotation or sales order meets minimum threshold</p>
+                </div>
+            </div>
+            <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-700">
+                {{ count($priceSlabs) }} Slabs Configured
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Existing Slabs List -->
+            <div class="lg:col-span-2 overflow-x-auto">
+                @if($priceSlabs->isEmpty())
+                    <div class="py-6 text-center text-xs text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-100">
+                        No tiered pricing configured. Base standard rate (₹{{ number_format($product->standard_rate, 2) }}) applies for all quantities.
+                    </div>
+                @else
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="bg-neutral-50 border-b border-neutral-200 text-neutral-400 font-mono uppercase text-[10px]">
+                                <th class="p-2.5 pl-3">Tier Name</th>
+                                <th class="p-2.5">Min Quantity</th>
+                                <th class="p-2.5">Special Rate</th>
+                                <th class="p-2.5 text-right pr-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-neutral-100">
+                            @foreach($priceSlabs as $slab)
+                                <tr>
+                                    <td class="p-2.5 pl-3 font-bold text-neutral-900">{{ $slab->tier_name }}</td>
+                                    <td class="p-2.5 font-mono text-neutral-600">≥ {{ number_format($slab->min_quantity, 0) }} {{ $product->uom ?? 'KG' }}</td>
+                                    <td class="p-2.5 font-mono font-black text-emerald-700">₹{{ number_format($slab->rate, 2) }}</td>
+                                    <td class="p-2.5 text-right pr-3">
+                                        <form method="POST" action="{{ route('products.price-slabs.destroy', ['product' => $product->id, 'slab' => $slab->id]) }}" onsubmit="return confirm('Delete this price slab?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-rose-600 hover:text-rose-800 font-bold text-xs cursor-pointer">✕</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </div>
+
+            <!-- Add Slab Form -->
+            <div class="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/80 space-y-3">
+                <h4 class="font-bold text-xs text-neutral-900">Add Pricing Slab</h4>
+                <form action="{{ route('products.price-slabs.store', $product->id) }}" method="POST" class="space-y-2.5 text-xs">
+                    @csrf
+                    <div>
+                        <label class="block text-[11px] font-bold text-neutral-600 mb-1">Tier / Segment Name *</label>
+                        <input type="text" name="tier_name" placeholder="e.g. Wholesale, Export, Container" required class="w-full px-2.5 py-1.5 border border-neutral-200 rounded-lg text-xs bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-neutral-600 mb-1">Min Quantity ({{ $product->uom ?? 'KG' }}) *</label>
+                        <input type="number" step="0.01" name="min_quantity" placeholder="1000" required class="w-full px-2.5 py-1.5 border border-neutral-200 rounded-lg text-xs font-mono bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-neutral-600 mb-1">Special Rate (₹) *</label>
+                        <input type="number" step="0.01" name="rate" placeholder="185.00" required class="w-full px-2.5 py-1.5 border border-neutral-200 rounded-lg text-xs font-mono bg-white">
+                    </div>
+                    <button type="submit" class="w-full py-2 bg-neutral-900 text-[#D7FF53] font-bold rounded-lg hover:bg-black transition-colors cursor-pointer text-xs">
+                        + Add Price Slab
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Fields & Technical Specifications Section -->
+    <div class="bg-white rounded-3xl border border-neutral-200/80 p-5 sm:p-7 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-neutral-100 pb-4">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">⚙️</span>
+                <div>
+                    <h2 class="font-black text-base text-neutral-900 font-display">Custom Fields & Specifications</h2>
+                    <p class="text-[11px] text-neutral-500">Tenant-defined dynamic attributes (Mesh size, Moisture %, Crop Year, Quality Grade)</p>
+                </div>
+            </div>
+        </div>
+
+        @if($customFields->isEmpty())
+            <div class="py-6 text-center text-xs text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-100 space-y-2">
+                <p>No custom product fields defined yet.</p>
+                <form action="{{ route('products.custom-fields.store') }}" method="POST" class="inline-flex items-center gap-2">
+                    @csrf
+                    <input type="hidden" name="field_name" value="Moisture Content %">
+                    <input type="hidden" name="field_type" value="TEXT">
+                    <button type="submit" class="px-3 py-1 bg-neutral-900 text-[#D7FF53] font-bold rounded-lg text-xs cursor-pointer">
+                        + Create Sample Field (Moisture %)
+                    </button>
+                </form>
+            </div>
+        @else
+            <form action="{{ route('products.custom-values.update', $product->id) }}" method="POST" class="space-y-4">
+                @csrf
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @php
+                        $valuesMap = $product->customValues->keyBy('custom_field_id');
+                    @endphp
+                    @foreach($customFields as $field)
+                        @php
+                            $currentVal = $valuesMap[$field->id]->field_value ?? '';
+                        @endphp
+                        <div>
+                            <label class="block text-xs font-bold text-neutral-700 mb-1">
+                                {{ $field->field_name }}
+                                @if($field->is_required) <span class="text-rose-500">*</span> @endif
+                            </label>
+                            @if($field->field_type === 'DROPDOWN' && !empty($field->options))
+                                <select name="custom_fields[{{ $field->id }}]" class="w-full px-3 py-1.5 border border-neutral-200 rounded-xl text-xs bg-white">
+                                    <option value="">-- Select --</option>
+                                    @foreach($field->options as $opt)
+                                        <option value="{{ $opt }}" {{ $currentVal == $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                                    @endforeach
+                                </select>
+                            @elseif($field->field_type === 'DATE')
+                                <input type="date" name="custom_fields[{{ $field->id }}]" value="{{ $currentVal }}" class="w-full px-3 py-1.5 border border-neutral-200 rounded-xl text-xs font-mono">
+                            @elseif($field->field_type === 'NUMBER')
+                                <input type="number" step="any" name="custom_fields[{{ $field->id }}]" value="{{ $currentVal }}" class="w-full px-3 py-1.5 border border-neutral-200 rounded-xl text-xs font-mono">
+                            @else
+                                <input type="text" name="custom_fields[{{ $field->id }}]" value="{{ $currentVal }}" placeholder="Enter {{ $field->field_name }}" class="w-full px-3 py-1.5 border border-neutral-200 rounded-xl text-xs">
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="px-5 py-2 rounded-full bg-neutral-900 text-[#D7FF53] hover:bg-black font-extrabold text-xs shadow-xs cursor-pointer transition-all">
+                        💾 Save Custom Specifications
+                    </button>
+                </div>
+            </form>
+        @endif
+    </div>
+
     <!-- Active Shares List Section -->
     @if($product->shares->count() > 0)
     <div class="bg-white rounded-3xl border border-neutral-200/80 p-5 sm:p-7 shadow-xs space-y-4">

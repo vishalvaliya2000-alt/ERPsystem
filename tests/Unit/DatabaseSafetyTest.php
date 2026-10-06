@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
 
 class DatabaseSafetyTest extends TestCase
 {
@@ -20,10 +20,10 @@ class DatabaseSafetyTest extends TestCase
         echo "Active PDO Driver: {$actualDriver}\n";
         echo "Active Database Name: {$actualDatabase}\n";
 
-        $this->assertEquals('mysql', $connection, "Default connection must be mysql");
-        $this->assertEquals('mysql', $actualDriver, "Driver must be mysql");
-        $this->assertEquals('saas_erp_test', $databaseName, "Database must be saas_erp_test");
-        $this->assertEquals('saas_erp_test', $actualDatabase, "Active DB must be saas_erp_test");
+        $this->assertEquals('mysql', $connection, 'Default connection must be mysql');
+        $this->assertEquals('mysql', $actualDriver, 'Driver must be mysql');
+        $this->assertEquals('saas_erp_test', $databaseName, 'Database must be saas_erp_test');
+        $this->assertEquals('saas_erp_test', $actualDatabase, 'Active DB must be saas_erp_test');
         $this->assertNotEquals('sqlite', $connection);
         $this->assertNotEquals('saas_erp', $databaseName);
     }

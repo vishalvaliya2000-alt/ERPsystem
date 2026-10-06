@@ -60,9 +60,9 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA', file_exists('/etc/ssl/certs/isrgrootx1.pem') ? '/etc/ssl/certs/isrgrootx1.pem' : (file_exists('/etc/ssl/certs/ca-certificates.crt') ? '/etc/ssl/certs/ca-certificates.crt' : (file_exists('V:\isrgrootx1.pem') ? 'V:\isrgrootx1.pem' : null))),
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false),
-            ], fn ($val) => !is_null($val)) : [],
+                (defined('Pdo\\Mysql::ATTR_SSL_CA') ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA', file_exists('/etc/ssl/certs/isrgrootx1.pem') ? '/etc/ssl/certs/isrgrootx1.pem' : (file_exists('/etc/ssl/certs/ca-certificates.crt') ? '/etc/ssl/certs/ca-certificates.crt' : (file_exists('V:\isrgrootx1.pem') ? 'V:\isrgrootx1.pem' : null))),
+                (defined('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT') ? Mysql::ATTR_SSL_VERIFY_SERVER_CERT : PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT) => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false),
+            ], fn ($val) => ! is_null($val)) : [],
         ],
 
         'mariadb' => [

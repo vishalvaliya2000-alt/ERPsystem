@@ -3,19 +3,21 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToTenant;
-
+use App\Services\TransporterTrackingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 
 class CommercialShipment extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
+        'firm_id',
         'shipment_number',
         'sales_order_id',
         'shipment_date',
@@ -37,6 +39,7 @@ class CommercialShipment extends Model
         'shipment_date' => 'datetime',
         'expected_delivery_date' => 'datetime',
         'actual_delivery_date' => 'datetime',
+        'firm_id' => 'integer',
         'freight_amount' => 'decimal:2',
     ];
 
@@ -47,6 +50,11 @@ class CommercialShipment extends Model
     public function getShipmentDateFormattedAttribute(): string
     {
         return $this->shipment_date ? $this->shipment_date->format('Y-m-d') : '';
+    }
+
+    public function firm(): BelongsTo
+    {
+        return $this->belongsTo(Firm::class, 'firm_id');
     }
 
     public function salesOrder(): BelongsTo
@@ -77,10 +85,20 @@ class CommercialShipment extends Model
             });
     }
 
+    public function ewayBill(): HasOne
+    {
+        return $this->hasOne(EwayBill::class, 'commercial_shipment_id')->latestOfMany();
+    }
+
+    public function ewayBills(): HasMany
+    {
+        return $this->hasMany(EwayBill::class, 'commercial_shipment_id');
+    }
+
     public function getDistinctOrders(): Collection
     {
         return $this->items
-            ->map(fn($it) => $it->salesOrderItem?->salesOrder)
+            ->map(fn ($it) => $it->salesOrderItem?->salesOrder)
             ->filter()
             ->unique('id');
     }
@@ -91,6 +109,7 @@ class CommercialShipment extends Model
         if ($orders->isNotEmpty()) {
             return $orders->pluck('order_number')->join(', ');
         }
+
         return $this->salesOrder?->order_number ?? '—';
     }
 
@@ -98,8 +117,9 @@ class CommercialShipment extends Model
     {
         $orders = $this->getDistinctOrders();
         if ($orders->isNotEmpty()) {
-            return $orders->map(fn($o) => $o->customer?->company_name)->filter()->unique()->join(', ');
+            return $orders->map(fn ($o) => $o->customer?->company_name)->filter()->unique()->join(', ');
         }
+
         return $this->salesOrder?->customer?->company_name ?? '—';
     }
 
@@ -114,6 +134,7 @@ class CommercialShipment extends Model
         if ($this->freight_payment_type === 'PAID' && $this->freight_amount > 0) {
             return $matVal + (float) $this->freight_amount;
         }
+
         return $matVal;
     }
 
@@ -126,6 +147,7 @@ class CommercialShipment extends Model
     {
         $matVal = $this->material_value;
         $invoiced = (float) $this->invoices()->sum('material_subtotal');
+
         return max(0, $matVal - $invoiced);
     }
 
@@ -136,17 +158,19 @@ class CommercialShipment extends Model
 
     public function getLrUrlAttribute(): ?string
     {
-        if (!empty($this->proof_document_url)) {
+        if (! empty($this->proof_document_url)) {
             if (str_starts_with($this->proof_document_url, 'http')) {
                 return $this->proof_document_url;
             }
-            return asset('storage/' . $this->proof_document_url);
+
+            return asset('storage/'.$this->proof_document_url);
         }
+
         return null;
     }
 
     public function getTrackingUrlAttribute(): ?string
     {
-        return \App\Services\TransporterTrackingService::getTrackingUrl($this->transporter, $this->lr_number);
+        return TransporterTrackingService::getTrackingUrl($this->transporter, $this->lr_number);
     }
 }

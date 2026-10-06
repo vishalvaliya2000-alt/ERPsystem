@@ -34,6 +34,13 @@
                 <span>Generate Invoice</span>
             </button>
             <button
+                @click="isCombineModalOpen = true"
+                class="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-bold text-neutral-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 shadow-2xs transition-all cursor-pointer active:scale-95"
+            >
+                <span>📦+</span>
+                <span>Combine Orders</span>
+            </button>
+            <button
                 @click="isNewReceiptOpen = true"
                 class="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-bold text-white bg-[#091315] hover:bg-black shadow-2xs transition-all cursor-pointer active:scale-95"
             >
@@ -322,6 +329,18 @@
                             </span>
                         </div>
                     </div>
+
+                    @can('invoices.view_profit')
+                        @if($inv->gross_profit_amount > 0 || $inv->total_cost_amount > 0)
+                            <div class="p-2 bg-blue-50/60 rounded-xl border border-blue-200/70 flex items-center justify-between text-xs font-mono">
+                                <span class="text-[10px] uppercase font-bold text-blue-800">Margin / Profit</span>
+                                <div class="text-right">
+                                    <span class="font-black text-blue-900">{{ formatINR($inv->gross_profit_amount) }}</span>
+                                    <span class="text-[10px] font-bold text-blue-700 ml-1">({{ $inv->gross_profit_percentage }}%)</span>
+                                </div>
+                            </div>
+                        @endif
+                    @endcan
                 </div>
 
                 <!-- Card Footer Actions -->
@@ -354,6 +373,16 @@
                             <span>📄</span>
                             <span>PDF</span>
                         </a>
+                        <form action="{{ route('invoices.whatsapp', $inv->id) }}" method="POST" class="inline">
+                            @csrf
+                            <button
+                                type="submit"
+                                class="p-1.5 rounded-full text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 shadow-2xs transition-colors cursor-pointer text-xs font-bold inline-flex items-center"
+                                title="Send Invoice PDF via WhatsApp"
+                            >
+                                💬
+                            </button>
+                        </form>
                         @if(!$hasPayments)
                             <button
                                 type="button"
@@ -495,6 +524,13 @@
                                 @if($inv->freight_amount > 0)
                                     <span class="text-[9px] text-emerald-700 font-mono font-bold block">(+{{ formatINR($inv->freight_amount) }} Frt)</span>
                                 @endif
+                                @can('invoices.view_profit')
+                                    @if($inv->gross_profit_amount > 0)
+                                        <span class="text-[9px] text-blue-700 font-mono font-bold block" title="Margin">
+                                            +{{ formatINR($inv->gross_profit_amount) }} ({{ $inv->gross_profit_percentage }}%)
+                                        </span>
+                                    @endif
+                                @endcan
                             </td>
 
                             <!-- 7. Amount Received -->
@@ -547,6 +583,16 @@
                                     >
                                         📄
                                     </a>
+                                    <form action="{{ route('invoices.whatsapp', $inv->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button
+                                            type="submit"
+                                            class="p-1.5 rounded-full text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold cursor-pointer inline-flex items-center"
+                                            title="Send Invoice PDF via WhatsApp"
+                                        >
+                                            💬
+                                        </button>
+                                    </form>
                                     @if($inv->balance_due > 0)
                                         <button
                                             type="button"
@@ -1050,6 +1096,222 @@
         </div>
     </template>
 
+    <!-- Combine Multiple Sales Orders into One Tax Invoice Modal -->
+    <template x-teleport="body">
+        <div x-show="isCombineModalOpen" x-cloak class="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+            <div @click.outside="isCombineModalOpen = false" class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-neutral-200/80 w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col" x-data="{
+                customerId: '',
+                orders: @js($customerOrdersData),
+                selectedOrders: [],
+                freight: 0,
+                gstRate: 5.0,
+                tcsRate: 0,
+                tdsRate: 0,
+                invoiceNumber: 'INV-COMB-' + Math.floor(1000 + Math.random() * 9000),
+                get availableOrders() {
+                    return this.customerId && this.orders[this.customerId] ? this.orders[this.customerId].filter(o => o.remaining_amount > 0) : [];
+                },
+                get subtotal() {
+                    let sum = 0;
+                    this.availableOrders.forEach(o => {
+                        if (this.selectedOrders.includes(o.id.toString()) || this.selectedOrders.includes(o.id)) {
+                            sum += parseFloat(o.remaining_amount || 0);
+                        }
+                    });
+                    return sum;
+                },
+                get total() {
+                    const sub = this.subtotal + parseFloat(this.freight || 0);
+                    const gst = sub * (parseFloat(this.gstRate || 0) / 100);
+                    const tcs = sub * (parseFloat(this.tcsRate || 0) / 100);
+                    const tds = sub * (parseFloat(this.tdsRate || 0) / 100);
+                    return Math.max(0, sub + gst + tcs - tds);
+                }
+            }">
+                <div class="p-4 sm:p-5 bg-[#091315] text-white flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-2xl bg-[#D7FF53]/20 border border-[#D7FF53]/30 text-[#D7FF53] flex items-center justify-center font-bold text-sm">
+                            📦
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-sm tracking-tight text-white font-display">Combine Multiple Sales Orders</h3>
+                            <p class="text-[11px] text-neutral-400">Merge multiple confirmed orders into one single tax invoice with complete line-level traceability</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="isCombineModalOpen = false" class="text-neutral-400 hover:text-white cursor-pointer text-lg font-bold">✕</button>
+                </div>
+
+                <form action="{{ route('invoices.combine-orders') }}" method="POST" class="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
+                    @csrf
+                    <div>
+                        <label class="block font-bold text-neutral-700 mb-1">Select Customer *</label>
+                        <select
+                            name="customer_id"
+                            x-model="customerId"
+                            @change="selectedOrders = []"
+                            required
+                            class="w-full px-3 py-2 border border-neutral-200 rounded-xl font-medium focus:border-neutral-900 bg-white"
+                        >
+                            <option value="">-- Choose Customer --</option>
+                            @foreach($customers as $c)
+                                <option value="{{ $c->id }}">{{ $c->company_name }} ({{ $c->customer_code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Available Orders with Checkboxes -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="font-bold text-neutral-700">Select Sales Orders to Combine *</label>
+                            <span class="text-[10px] text-neutral-400 font-mono" x-text="availableOrders.length + ' Uninvoiced Orders Available'"></span>
+                        </div>
+
+                        <div class="border border-neutral-200 rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 bg-neutral-50/50">
+                            <template x-if="availableOrders.length === 0">
+                                <div class="text-center py-4 text-neutral-400">
+                                    <span x-text="customerId ? 'No uninvoiced sales orders available for this customer.' : 'Please select a customer above to view open orders.'"></span>
+                                </div>
+                            </template>
+
+                            <template x-for="order in availableOrders" :key="order.id">
+                                <label class="flex items-center justify-between p-2.5 bg-white rounded-xl border border-neutral-200 hover:border-neutral-400 cursor-pointer transition-colors">
+                                    <div class="flex items-center gap-2.5">
+                                        <input
+                                            type="checkbox"
+                                            name="sales_order_ids[]"
+                                            :value="order.id"
+                                            x-model="selectedOrders"
+                                            class="rounded text-neutral-900 focus:ring-0 cursor-pointer"
+                                        >
+                                        <div>
+                                            <span class="font-bold font-mono text-neutral-900" x-text="order.order_number"></span>
+                                            <span class="text-[10px] text-neutral-400 block" x-text="'Terms: ' + (order.payment_terms || 'Credit')"></span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="font-bold font-mono text-neutral-900" x-text="'₹' + Number(order.remaining_amount).toLocaleString('en-IN')"></span>
+                                        <span class="text-[10px] text-neutral-400 block font-mono">Uninvoiced</span>
+                                    </div>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Invoice Details Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-neutral-700 mb-1">Invoice Number *</label>
+                            <input
+                                type="text"
+                                name="invoice_number"
+                                x-model="invoiceNumber"
+                                required
+                                class="w-full px-3 py-2 border border-neutral-200 rounded-xl font-mono text-xs font-bold text-neutral-900 focus:border-neutral-900"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-neutral-700 mb-1">Invoice Date *</label>
+                            <input
+                                type="date"
+                                name="invoice_date"
+                                value="{{ date('Y-m-d') }}"
+                                required
+                                class="w-full px-3 py-2 border border-neutral-200 rounded-xl font-mono text-xs focus:border-neutral-900"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                            <label class="block font-bold text-neutral-700 mb-1">Freight (₹)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                name="freight_amount"
+                                x-model="freight"
+                                class="w-full px-2.5 py-1.5 border border-neutral-200 rounded-xl font-mono text-xs"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-neutral-700 mb-1">GST Rate (%)</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                name="gst_rate"
+                                x-model="gstRate"
+                                class="w-full px-2.5 py-1.5 border border-neutral-200 rounded-xl font-mono text-xs"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-neutral-700 mb-1">TCS (%)</label>
+                            <input
+                                type="number"
+                                step="0.001"
+                                name="tcs_rate"
+                                x-model="tcsRate"
+                                placeholder="0.075"
+                                class="w-full px-2.5 py-1.5 border border-neutral-200 rounded-xl font-mono text-xs"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-neutral-700 mb-1">TDS (%)</label>
+                            <input
+                                type="number"
+                                step="0.001"
+                                name="tds_rate"
+                                x-model="tdsRate"
+                                placeholder="0.1"
+                                class="w-full px-2.5 py-1.5 border border-neutral-200 rounded-xl font-mono text-xs"
+                            >
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-neutral-700 mb-1">Internal Notes</label>
+                        <input
+                            type="text"
+                            name="notes"
+                            placeholder="e.g. Combined shipment for Q3 dispatch schedule"
+                            class="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs"
+                        >
+                    </div>
+
+                    <!-- Calculated Total Box -->
+                    <div class="p-3 bg-neutral-900 text-white rounded-2xl flex items-center justify-between font-mono">
+                        <div>
+                            <span class="text-[10px] text-[#D7FF53] uppercase block font-bold">Estimated Grand Total</span>
+                            <span class="text-xs text-neutral-400" x-text="selectedOrders.length + ' Orders Selected'"></span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-lg font-black text-[#D7FF53]" x-text="'₹' + Number(total).toLocaleString('en-IN', { maximumFractionDigits: 2 })"></span>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-neutral-100 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            @click="isCombineModalOpen = false"
+                            class="px-4 py-2 font-bold text-neutral-600 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="selectedOrders.length === 0"
+                            class="px-5 py-2 font-extrabold text-[#091315] bg-[#D7FF53] hover:bg-[#c8f043] disabled:opacity-50 disabled:cursor-not-allowed rounded-full shadow-2xs border border-[#c8f043] transition-all cursor-pointer"
+                        >
+                            Generate Combined Tax Invoice
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+
     <!-- Edit Tax Invoice Modal (Only for Unsettled Invoices) -->
     <template x-teleport="body">
         <div x-show="isEditModalOpen" x-cloak class="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
@@ -1271,6 +1533,7 @@
             filterStatus: 'ALL',
             searchQuery: '',
             isNewInvoiceOpen: false,
+            isCombineModalOpen: false,
             isNewReceiptOpen: false,
             isEditModalOpen: false,
             editInvoice: {},

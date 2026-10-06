@@ -2,18 +2,18 @@
 
 namespace App\Services;
 
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\PaymentReceipt;
-use App\Models\SalesOrder;
-use App\Models\SalesOrderItem;
 use App\Models\CommercialShipment;
 use App\Models\Customer;
-use App\Models\Product;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Lead;
+use App\Models\PaymentReceipt;
+use App\Models\Product;
+use App\Models\SalesOrder;
+use App\Models\SalesOrderItem;
 use App\Models\Sample;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardAnalyticsService
 {
@@ -22,10 +22,11 @@ class DashboardAnalyticsService
      */
     public function getAllAnalytics(?int $tenantId = null, array $filters = []): array
     {
-        $tenantId = $tenantId ?: TenantManager::getTenantId();
-        
+        $hasTenantCol = Schema::hasColumn('invoices', 'tenant_id');
+        $tenantId = $hasTenantCol ? ($tenantId ?: TenantManager::getTenantId()) : null;
+
         $dateRange = $this->resolveDateRange($filters);
-        
+
         $kpis = $this->getKpis($tenantId, $dateRange, $filters);
         $yearlySales = $this->getYearlySalesTrend($tenantId, $filters);
         $monthlySales = $this->getMonthlySalesTrend($tenantId, $dateRange, $filters);
@@ -83,6 +84,7 @@ class DashboardAnalyticsService
                 ];
             case 'last_month':
                 $lastMonth = $now->copy()->subMonth();
+
                 return [
                     'start' => $lastMonth->copy()->startOfMonth(),
                     'end' => $lastMonth->copy()->endOfMonth(),
@@ -91,18 +93,20 @@ class DashboardAnalyticsService
             case 'this_quarter':
                 $qStart = $now->copy()->firstOfQuarter();
                 $qEnd = $now->copy()->lastOfQuarter();
+
                 return [
                     'start' => $qStart,
                     'end' => $qEnd,
-                    'label' => 'Q' . ceil($now->month / 3) . ' (' . $qStart->format('M') . ' - ' . $qEnd->format('M Y') . ')',
+                    'label' => 'Q'.ceil($now->month / 3).' ('.$qStart->format('M').' - '.$qEnd->format('M Y').')',
                 ];
             case 'last_fy':
                 $currentYear = ($now->month >= 4) ? $now->year : $now->year - 1;
                 $lastYear = $currentYear - 1;
+
                 return [
                     'start' => Carbon::create($lastYear, 4, 1)->startOfDay(),
                     'end' => Carbon::create($lastYear + 1, 3, 31)->endOfDay(),
-                    'label' => 'FY ' . $lastYear . '-' . substr((string)($lastYear + 1), 2),
+                    'label' => 'FY '.$lastYear.'-'.substr((string) ($lastYear + 1), 2),
                 ];
             case 'all':
                 return [
@@ -113,20 +117,22 @@ class DashboardAnalyticsService
             case 'fy':
                 if ($fy && preg_match('/^(\d{4})-(\d{2})$/', $fy, $m)) {
                     $y1 = (int) $m[1];
+
                     return [
                         'start' => Carbon::create($y1, 4, 1)->startOfDay(),
                         'end' => Carbon::create($y1 + 1, 3, 31)->endOfDay(),
-                        'label' => 'FY ' . $fy,
+                        'label' => 'FY '.$fy,
                     ];
                 }
                 // Fallthrough to this_fy
             case 'this_fy':
             default:
                 $startYear = ($now->month >= 4) ? $now->year : $now->year - 1;
+
                 return [
                     'start' => Carbon::create($startYear, 4, 1)->startOfDay(),
                     'end' => Carbon::create($startYear + 1, 3, 31)->endOfDay(),
-                    'label' => 'FY ' . $startYear . '-' . substr((string)($startYear + 1), 2),
+                    'label' => 'FY '.$startYear.'-'.substr((string) ($startYear + 1), 2),
                 ];
         }
     }
@@ -138,13 +144,14 @@ class DashboardAnalyticsService
     {
         $now = Carbon::now();
         $startYear = ($now->month >= 4) ? $now->year : $now->year - 1;
-        return $startYear . '-' . substr((string)($startYear + 1), 2);
+
+        return $startYear.'-'.substr((string) ($startYear + 1), 2);
     }
 
     /**
      * Top KPI Bento (6 core metrics with comparisons)
      */
-    public function getKpis(int $tenantId, array $dateRange, array $filters): array
+    public function getKpis(?int $tenantId, array $dateRange, array $filters): array
     {
         $now = Carbon::now();
         $startOfMonth = $now->copy()->startOfMonth();
@@ -153,19 +160,19 @@ class DashboardAnalyticsService
         $endOfLastMonth = $now->copy()->subMonth()->endOfMonth();
 
         // 1. Total Invoiced Sales (Filtered by Date Range if specified, and customer/product)
-        $invQuery = Invoice::where('tenant_id', $tenantId);
+        $invQuery = Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)));
         $this->applyInvoiceFilters($invQuery, $dateRange, $filters);
         $totalSales = (float) $invQuery->sum('total_amount');
 
         // All-Time Invoiced Sales baseline
-        $allTimeSales = (float) Invoice::where('tenant_id', $tenantId)->sum('total_amount');
+        $allTimeSales = (float) Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))->sum('total_amount');
 
         // 2. Current Month Sales vs Previous Month Sales (MoM growth)
-        $thisMonthSales = (float) Invoice::where('tenant_id', $tenantId)
+        $thisMonthSales = (float) Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereBetween('invoice_date', [$startOfMonth, $endOfMonth])
             ->sum('total_amount');
 
-        $lastMonthSales = (float) Invoice::where('tenant_id', $tenantId)
+        $lastMonthSales = (float) Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereBetween('invoice_date', [$startOfLastMonth, $endOfLastMonth])
             ->sum('total_amount');
 
@@ -177,49 +184,49 @@ class DashboardAnalyticsService
         }
 
         // 3. Outstanding Receivables (AR)
-        $outstandingAR = (float) Invoice::where('tenant_id', $tenantId)->sum('balance_due');
-        $overdueAR = (float) Invoice::where('tenant_id', $tenantId)
+        $outstandingAR = (float) Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))->sum('balance_due');
+        $overdueAR = (float) Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->where('due_date', '<', $now->toDateString())
             ->where('balance_due', '>', 0)
             ->sum('balance_due');
 
         // 4. Total Collections (Bank Receipts - Exclude internal advance offsets to prevent double-counting)
-        $rcpQuery = PaymentReceipt::where('tenant_id', $tenantId)
+        $rcpQuery = PaymentReceipt::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->where('payment_mode', '!=', 'ADVANCE_OFFSET');
         if ($dateRange['start'] && $dateRange['end']) {
             $rcpQuery->whereBetween('receipt_date', [$dateRange['start'], $dateRange['end']]);
         }
-        if (!empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
+        if (! empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
             $rcpQuery->where('customer_id', $filters['customer_id']);
         }
         $totalCollections = (float) $rcpQuery->sum('amount_received');
-        $allTimeCollections = (float) PaymentReceipt::where('tenant_id', $tenantId)
+        $allTimeCollections = (float) PaymentReceipt::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->where('payment_mode', '!=', 'ADVANCE_OFFSET')
             ->sum('amount_received');
         $collectionRate = $allTimeSales > 0 ? round(($allTimeCollections / $allTimeSales) * 100, 1) : 0;
 
         // 5. Active Sales Orders / Open Commitments
-        $activeOrdersQuery = SalesOrder::where('tenant_id', $tenantId)
+        $activeOrdersQuery = SalesOrder::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereIn('status', ['PENDING', 'CONFIRMED', 'PARTIALLY_DISPATCHED', 'IN_PRODUCTION']);
-        if (!empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
+        if (! empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
             $activeOrdersQuery->where('customer_id', $filters['customer_id']);
         }
         $activeOrdersCount = $activeOrdersQuery->count();
         $activeOrdersValue = (float) $activeOrdersQuery->sum('total_amount');
 
         // Open items & pending qty
-        $openOrderLines = SalesOrderItem::where('tenant_id', $tenantId)
+        $openOrderLines = SalesOrderItem::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereIn('status', ['PENDING', 'PARTIAL'])
             ->count();
-        $pendingDispatchQty = (float) SalesOrderItem::where('tenant_id', $tenantId)
+        $pendingDispatchQty = (float) SalesOrderItem::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereIn('status', ['PENDING', 'PARTIAL'])
             ->sum('balance_qty');
 
         // 6. Active Leads & Pipeline
-        $leadsQuery = Lead::where('tenant_id', $tenantId)->whereNotIn('stage', ['WON', 'LOST']);
+        $leadsQuery = Lead::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))->whereNotIn('stage', ['WON', 'LOST']);
         $activeLeadsCount = $leadsQuery->count();
         $pipelineValue = (float) $leadsQuery->sum('estimated_value');
-        $samplesInTrial = Sample::where('tenant_id', $tenantId)
+        $samplesInTrial = Sample::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereIn('trial_status', ['Pending', 'Pending Evaluation', 'In Trial'])
             ->count();
 
@@ -247,10 +254,10 @@ class DashboardAnalyticsService
     /**
      * Yearly Sales Historical Trend
      */
-    public function getYearlySalesTrend(int $tenantId, array $filters): array
+    public function getYearlySalesTrend(?int $tenantId, array $filters): array
     {
-        $invoices = Invoice::where('tenant_id', $tenantId)
-            ->when(!empty($filters['customer_id']) && $filters['customer_id'] !== 'all', function ($q) use ($filters) {
+        $invoices = Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
+            ->when(! empty($filters['customer_id']) && $filters['customer_id'] !== 'all', function ($q) use ($filters) {
                 $q->where('customer_id', $filters['customer_id']);
             })
             ->get(['id', 'invoice_date', 'total_amount']);
@@ -260,9 +267,9 @@ class DashboardAnalyticsService
         foreach ($invoices as $inv) {
             $date = Carbon::parse($inv->invoice_date);
             $startYear = ($date->month >= 4) ? $date->year : $date->year - 1;
-            $fyKey = 'FY ' . $startYear . '-' . substr((string)($startYear + 1), 2);
-            
-            if (!isset($fyGroups[$fyKey])) {
+            $fyKey = 'FY '.$startYear.'-'.substr((string) ($startYear + 1), 2);
+
+            if (! isset($fyGroups[$fyKey])) {
                 $fyGroups[$fyKey] = [
                     'fy' => $fyKey,
                     'start_year' => $startYear,
@@ -278,8 +285,8 @@ class DashboardAnalyticsService
         $now = Carbon::now();
         $currStartYear = ($now->month >= 4) ? $now->year : $now->year - 1;
         for ($y = $currStartYear - 2; $y <= $currStartYear; $y++) {
-            $key = 'FY ' . $y . '-' . substr((string)($y + 1), 2);
-            if (!isset($fyGroups[$key])) {
+            $key = 'FY '.$y.'-'.substr((string) ($y + 1), 2);
+            if (! isset($fyGroups[$key])) {
                 $fyGroups[$key] = [
                     'fy' => $key,
                     'start_year' => $y,
@@ -290,7 +297,7 @@ class DashboardAnalyticsService
         }
 
         // Sort by start year ascending
-        usort($fyGroups, fn($a, $b) => $a['start_year'] <=> $b['start_year']);
+        usort($fyGroups, fn ($a, $b) => $a['start_year'] <=> $b['start_year']);
 
         return [
             'labels' => array_column($fyGroups, 'fy'),
@@ -302,12 +309,12 @@ class DashboardAnalyticsService
     /**
      * Monthly Sales Trend for the selected FY (Apr–Mar)
      */
-    public function getMonthlySalesTrend(int $tenantId, array $dateRange, array $filters): array
+    public function getMonthlySalesTrend(?int $tenantId, array $dateRange, array $filters): array
     {
         $now = Carbon::now();
         // Determine reference year for the 12-month FY cycle
         $startYear = ($now->month >= 4) ? $now->year : $now->year - 1;
-        if (!empty($filters['fy']) && preg_match('/^(\d{4})-(\d{2})$/', $filters['fy'], $m)) {
+        if (! empty($filters['fy']) && preg_match('/^(\d{4})-(\d{2})$/', $filters['fy'], $m)) {
             $startYear = (int) $m[1];
         }
 
@@ -334,13 +341,13 @@ class DashboardAnalyticsService
             ];
         }
 
-        $invQuery = Invoice::where('tenant_id', $tenantId)
+        $invQuery = Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereBetween('invoice_date', [
                 Carbon::create($startYear, 4, 1)->startOfDay(),
                 Carbon::create($startYear + 1, 3, 31)->endOfDay(),
             ]);
 
-        if (!empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
+        if (! empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
             $invQuery->where('customer_id', $filters['customer_id']);
         }
 
@@ -360,18 +367,18 @@ class DashboardAnalyticsService
             'values' => array_values(array_column($months, 'sales')),
             'counts' => array_values(array_column($months, 'invoice_count')),
             'current_month_index' => array_search($currentMonthKey, $keys),
-            'fy_label' => 'FY ' . $startYear . '-' . substr((string)($startYear + 1), 2),
+            'fy_label' => 'FY '.$startYear.'-'.substr((string) ($startYear + 1), 2),
         ];
     }
 
     /**
      * Product-wise Monthly Sales Quantity (KG)
      */
-    public function getProductMonthlySalesQty(int $tenantId, array $dateRange, array $filters): array
+    public function getProductMonthlySalesQty(?int $tenantId, array $dateRange, array $filters): array
     {
         $now = Carbon::now();
         $startYear = ($now->month >= 4) ? $now->year : $now->year - 1;
-        if (!empty($filters['fy']) && preg_match('/^(\d{4})-(\d{2})$/', $filters['fy'], $m)) {
+        if (! empty($filters['fy']) && preg_match('/^(\d{4})-(\d{2})$/', $filters['fy'], $m)) {
             $startYear = (int) $m[1];
         }
 
@@ -388,18 +395,18 @@ class DashboardAnalyticsService
 
         // Query Invoice Items joined with Invoices
         $itemsQuery = InvoiceItem::with(['invoice', 'product'])
-            ->where('tenant_id', $tenantId)
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
             ->whereHas('invoice', function ($q) use ($startYear, $filters) {
                 $q->whereBetween('invoice_date', [
                     Carbon::create($startYear, 4, 1)->startOfDay(),
                     Carbon::create($startYear + 1, 3, 31)->endOfDay(),
                 ]);
-                if (!empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
+                if (! empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
                     $q->where('customer_id', $filters['customer_id']);
                 }
             });
 
-        if (!empty($filters['product_id']) && $filters['product_id'] !== 'all') {
+        if (! empty($filters['product_id']) && $filters['product_id'] !== 'all') {
             $itemsQuery->where('product_id', $filters['product_id']);
         }
 
@@ -410,15 +417,19 @@ class DashboardAnalyticsService
         $byProduct = [];
 
         foreach ($items as $it) {
-            if (!$it->invoice) continue;
+            if (! $it->invoice) {
+                continue;
+            }
             $mKey = Carbon::parse($it->invoice->invoice_date)->format('Y-m');
-            if (!in_array($mKey, $keys)) continue;
+            if (! in_array($mKey, $keys)) {
+                continue;
+            }
 
             $prodId = $it->product_id ?: 0;
             $prodName = $it->product?->product_name ?? 'Other Dehydrated Items';
             $qty = (float) $it->quantity;
 
-            if (!isset($byProduct[$prodId])) {
+            if (! isset($byProduct[$prodId])) {
                 $byProduct[$prodId] = [
                     'product_id' => $prodId,
                     'product_name' => $prodName,
@@ -433,7 +444,7 @@ class DashboardAnalyticsService
         }
 
         // Sort products by total quantity descending
-        uasort($byProduct, fn($a, $b) => $b['total_qty'] <=> $a['total_qty']);
+        uasort($byProduct, fn ($a, $b) => $b['total_qty'] <=> $a['total_qty']);
 
         // Format datasets for Chart.js
         $palette = ['#091315', '#D7FF53', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'];
@@ -450,7 +461,9 @@ class DashboardAnalyticsService
                 'total_qty' => $pData['total_qty'],
             ];
             $idx++;
-            if ($idx >= 5) break; // Top 5 in multi-chart
+            if ($idx >= 5) {
+                break;
+            } // Top 5 in multi-chart
         }
 
         return [
@@ -458,7 +471,7 @@ class DashboardAnalyticsService
             'keys' => $keys,
             'total_monthly_qty' => array_values($monthlyAggregates),
             'datasets' => $datasets,
-            'products_list' => array_values(array_map(fn($p) => [
+            'products_list' => array_values(array_map(fn ($p) => [
                 'id' => $p['product_id'],
                 'name' => $p['product_name'],
                 'total_qty' => $p['total_qty'],
@@ -469,15 +482,15 @@ class DashboardAnalyticsService
     /**
      * Top Products by Revenue
      */
-    public function getTopProductsByRevenue(int $tenantId, array $dateRange, array $filters, int $limit = 5): array
+    public function getTopProductsByRevenue(?int $tenantId, array $dateRange, array $filters, int $limit = 5): array
     {
         $itemsQuery = InvoiceItem::with(['invoice', 'product'])
-            ->where('tenant_id', $tenantId)
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
             ->whereHas('invoice', function ($q) use ($dateRange, $filters) {
                 if ($dateRange['start'] && $dateRange['end']) {
                     $q->whereBetween('invoice_date', [$dateRange['start'], $dateRange['end']]);
                 }
-                if (!empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
+                if (! empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
                     $q->where('customer_id', $filters['customer_id']);
                 }
             });
@@ -494,7 +507,7 @@ class DashboardAnalyticsService
             $amt = (float) $it->amount;
             $qty = (float) $it->quantity;
 
-            if (!isset($byProduct[$pId])) {
+            if (! isset($byProduct[$pId])) {
                 $byProduct[$pId] = [
                     'product_id' => $pId,
                     'product_name' => $pName,
@@ -511,7 +524,7 @@ class DashboardAnalyticsService
         }
 
         // Sort by revenue descending
-        usort($byProduct, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        usort($byProduct, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
 
         $top = array_slice($byProduct, 0, $limit);
 
@@ -532,11 +545,11 @@ class DashboardAnalyticsService
     /**
      * Top Customers by Sales Turnover
      */
-    public function getTopCustomersBySales(int $tenantId, array $dateRange, array $filters, int $limit = 5): array
+    public function getTopCustomersBySales(?int $tenantId, array $dateRange, array $filters, int $limit = 5): array
     {
         $invQuery = Invoice::with('customer')
-            ->where('tenant_id', $tenantId);
-        
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId));
+
         $this->applyInvoiceFilters($invQuery, $dateRange, $filters);
 
         $invoices = $invQuery->get(['id', 'customer_id', 'total_amount', 'balance_due', 'amount_received']);
@@ -552,7 +565,7 @@ class DashboardAnalyticsService
             $received = (float) $inv->amount_received;
             $balance = (float) $inv->balance_due;
 
-            if (!isset($byCustomer[$cId])) {
+            if (! isset($byCustomer[$cId])) {
                 $byCustomer[$cId] = [
                     'customer_id' => $cId,
                     'customer_name' => $cName,
@@ -571,7 +584,7 @@ class DashboardAnalyticsService
             $totalBilledAll += $billed;
         }
 
-        usort($byCustomer, fn($a, $b) => $b['billed_amount'] <=> $a['billed_amount']);
+        usort($byCustomer, fn ($a, $b) => $b['billed_amount'] <=> $a['billed_amount']);
 
         $top = array_slice($byCustomer, 0, $limit);
 
@@ -591,11 +604,11 @@ class DashboardAnalyticsService
     /**
      * Collections vs Outstanding Cash Flow Health (Monthly Invoiced vs Collected vs Outstanding)
      */
-    public function getCollectionsVsOutstanding(int $tenantId, array $dateRange, array $filters): array
+    public function getCollectionsVsOutstanding(?int $tenantId, array $dateRange, array $filters): array
     {
         $now = Carbon::now();
         $startYear = ($now->month >= 4) ? $now->year : $now->year - 1;
-        if (!empty($filters['fy']) && preg_match('/^(\d{4})-(\d{2})$/', $filters['fy'], $m)) {
+        if (! empty($filters['fy']) && preg_match('/^(\d{4})-(\d{2})$/', $filters['fy'], $m)) {
             $startYear = (int) $m[1];
         }
 
@@ -618,12 +631,12 @@ class DashboardAnalyticsService
         }
 
         // Invoices within this FY
-        $invoices = Invoice::where('tenant_id', $tenantId)
+        $invoices = Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->whereBetween('invoice_date', [
                 Carbon::create($startYear, 4, 1)->startOfDay(),
                 Carbon::create($startYear + 1, 3, 31)->endOfDay(),
             ])
-            ->when(!empty($filters['customer_id']) && $filters['customer_id'] !== 'all', function ($q) use ($filters) {
+            ->when(! empty($filters['customer_id']) && $filters['customer_id'] !== 'all', function ($q) use ($filters) {
                 $q->where('customer_id', $filters['customer_id']);
             })
             ->get(['invoice_date', 'total_amount', 'balance_due']);
@@ -637,13 +650,13 @@ class DashboardAnalyticsService
         }
 
         // Payment Receipts within this FY (Real bank receipts only)
-        $receipts = PaymentReceipt::where('tenant_id', $tenantId)
+        $receipts = PaymentReceipt::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->where('payment_mode', '!=', 'ADVANCE_OFFSET')
             ->whereBetween('receipt_date', [
                 Carbon::create($startYear, 4, 1)->startOfDay(),
                 Carbon::create($startYear + 1, 3, 31)->endOfDay(),
             ])
-            ->when(!empty($filters['customer_id']) && $filters['customer_id'] !== 'all', function ($q) use ($filters) {
+            ->when(! empty($filters['customer_id']) && $filters['customer_id'] !== 'all', function ($q) use ($filters) {
                 $q->where('customer_id', $filters['customer_id']);
             })
             ->get(['receipt_date', 'amount_received']);
@@ -667,7 +680,7 @@ class DashboardAnalyticsService
     /**
      * Sales Pipeline Funnel (5 stages: RFQ, Sample Trial, Quotation, Negotiation, Won)
      */
-    public function getSalesPipelineFunnel(int $tenantId): array
+    public function getSalesPipelineFunnel(?int $tenantId): array
     {
         $stages = [
             'LEAD' => [
@@ -712,7 +725,7 @@ class DashboardAnalyticsService
             ],
         ];
 
-        $leads = Lead::where('tenant_id', $tenantId)->get(['stage', 'estimated_value']);
+        $leads = Lead::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))->get(['stage', 'estimated_value']);
         $totalPipelineValue = 0.0;
         $totalLeads = $leads->count();
 
@@ -748,12 +761,12 @@ class DashboardAnalyticsService
     /**
      * Receivables Aging Analysis Buckets (Not Due, 1-15d, 16-30d, 31-60d, 60+d)
      */
-    public function getReceivablesAging(int $tenantId): array
+    public function getReceivablesAging(?int $tenantId): array
     {
         $today = Carbon::today();
 
         $invoices = Invoice::with('customer')
-            ->where('tenant_id', $tenantId)
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
             ->where('balance_due', '>', 0)
             ->get(['id', 'invoice_number', 'customer_id', 'due_date', 'total_amount', 'balance_due', 'status']);
 
@@ -848,7 +861,7 @@ class DashboardAnalyticsService
     /**
      * Operational Orders & Shipment Fulfillment Status breakdown
      */
-    public function getOperationalStatus(int $tenantId): array
+    public function getOperationalStatus(?int $tenantId): array
     {
         // Sales Orders Status
         $orderCounts = [
@@ -858,7 +871,7 @@ class DashboardAnalyticsService
             'COMPLETED' => 0,
         ];
 
-        $orders = SalesOrder::where('tenant_id', $tenantId)->get(['status', 'total_amount']);
+        $orders = SalesOrder::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))->get(['status', 'total_amount']);
         foreach ($orders as $so) {
             $st = strtoupper($so->status ?? 'PENDING');
             if (in_array($st, ['PENDING', 'DRAFT', 'CREATED'])) {
@@ -880,7 +893,7 @@ class DashboardAnalyticsService
             'DELAYED' => 0,
         ];
 
-        $shipments = CommercialShipment::where('tenant_id', $tenantId)->get(['status']);
+        $shipments = CommercialShipment::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))->get(['status']);
         foreach ($shipments as $shp) {
             $st = strtoupper($shp->status ?? 'PENDING');
             if (in_array($st, ['PENDING', 'PENDING_DISPATCH', 'PLANNED'])) {
@@ -905,19 +918,19 @@ class DashboardAnalyticsService
     /**
      * Populate filter dropdown options
      */
-    public function getFilterOptions(int $tenantId): array
+    public function getFilterOptions(?int $tenantId): array
     {
         // 1. Available FYs from invoices and current date
         $now = Carbon::now();
         $currStartYear = ($now->month >= 4) ? $now->year : $now->year - 1;
         $years = [$currStartYear, $currStartYear - 1];
 
-        $invDates = Invoice::where('tenant_id', $tenantId)->pluck('invoice_date');
+        $invDates = Invoice::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))->pluck('invoice_date');
         foreach ($invDates as $d) {
             if ($d) {
                 $dt = Carbon::parse($d);
                 $sy = ($dt->month >= 4) ? $dt->year : $dt->year - 1;
-                if (!in_array($sy, $years)) {
+                if (! in_array($sy, $years)) {
                     $years[] = $sy;
                 }
             }
@@ -926,25 +939,25 @@ class DashboardAnalyticsService
 
         $fyList = [];
         foreach ($years as $y) {
-            $key = $y . '-' . substr((string)($y + 1), 2);
+            $key = $y.'-'.substr((string) ($y + 1), 2);
             $fyList[] = [
                 'key' => $key,
-                'label' => 'FY ' . $key,
+                'label' => 'FY '.$key,
             ];
         }
 
         // 2. Customers
-        $customers = Customer::where('tenant_id', $tenantId)
+        $customers = Customer::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->orderBy('company_name')
             ->get(['id', 'company_name'])
-            ->map(fn($c) => ['id' => $c->id, 'name' => $c->company_name])
+            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->company_name])
             ->toArray();
 
         // 3. Products
-        $products = Product::where('tenant_id', $tenantId)
+        $products = Product::query()->when($tenantId, fn ($q) => $q->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId)))
             ->orderBy('product_name')
             ->get(['id', 'product_name'])
-            ->map(fn($p) => ['id' => $p->id, 'name' => $p->product_name])
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->product_name])
             ->toArray();
 
         return [
@@ -964,11 +977,11 @@ class DashboardAnalyticsService
             $query->whereBetween('invoice_date', [$dateRange['start'], $dateRange['end']]);
         }
 
-        if (!empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
+        if (! empty($filters['customer_id']) && $filters['customer_id'] !== 'all') {
             $query->where('customer_id', $filters['customer_id']);
         }
 
-        if (!empty($filters['product_id']) && $filters['product_id'] !== 'all') {
+        if (! empty($filters['product_id']) && $filters['product_id'] !== 'all') {
             $query->whereHas('items', function ($q) use ($filters) {
                 $q->where('product_id', $filters['product_id']);
             });

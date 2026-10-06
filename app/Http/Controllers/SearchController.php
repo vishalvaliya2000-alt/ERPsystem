@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\BusinessDocument;
+use App\Models\CommercialShipment;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\SalesOrder;
-use App\Models\Invoice;
-use App\Models\CommercialShipment;
-use App\Models\BusinessDocument;
+use Illuminate\Http\Request;
 
 class SearchController extends Controller
 {
@@ -48,7 +48,7 @@ class SearchController extends Controller
             $results[] = [
                 'type' => 'order',
                 'title' => "Order {$o->order_number}",
-                'subtitle' => "Customer: " . ($o->customer->company_name ?? 'N/A') . " · Total: " . formatINR($o->total_amount),
+                'subtitle' => 'Customer: '.($o->customer->company_name ?? 'N/A').' · Total: '.formatINR($o->total_amount),
                 'url' => route('orders.index'),
                 'tag' => 'Sales Order',
             ];
@@ -59,7 +59,7 @@ class SearchController extends Controller
             $results[] = [
                 'type' => 'invoice',
                 'title' => "Invoice {$inv->invoice_number}",
-                'subtitle' => "Customer: " . ($inv->customer->company_name ?? 'N/A') . " · Balance: " . formatINR($inv->balance_due),
+                'subtitle' => 'Customer: '.($inv->customer->company_name ?? 'N/A').' · Balance: '.formatINR($inv->balance_due),
                 'url' => route('invoices.index'),
                 'tag' => 'Invoice',
             ];
@@ -70,7 +70,7 @@ class SearchController extends Controller
             $results[] = [
                 'type' => 'shipment',
                 'title' => "Shipment {$s->shipment_number} (LR: {$s->lr_number})",
-                'subtitle' => "Transporter: {$s->transporter} · Order: " . ($s->salesOrder->order_number ?? 'N/A'),
+                'subtitle' => "Transporter: {$s->transporter} · Order: ".($s->salesOrder->order_number ?? 'N/A'),
                 'url' => route('shipments.index'),
                 'tag' => 'LR Tracking',
             ];
@@ -80,14 +80,14 @@ class SearchController extends Controller
         foreach (BusinessDocument::with('customer', 'activeVersion')
             ->where('document_number', 'like', "%{$q}%")
             ->orWhere('notes', 'like', "%{$q}%")
-            ->orWhereHas('versions', fn($vq) => $vq->where('file_name', 'like', "%{$q}%"))
+            ->orWhereHas('versions', fn ($vq) => $vq->where('file_name', 'like', "%{$q}%"))
             ->take(4)->get() as $doc) {
             $results[] = [
                 'type' => 'document',
                 'title' => "{$doc->type_label} {$doc->document_number}",
-                'subtitle' => "Customer: " . ($doc->customer->company_name ?? 'N/A') . " · Amount: " . formatINR($doc->total_amount) . " · Status: {$doc->status}",
+                'subtitle' => 'Customer: '.($doc->customer->company_name ?? 'N/A').' · Amount: '.formatINR($doc->total_amount)." · Status: {$doc->status}",
                 'url' => route('documents.preview', $doc->id),
-                'tag' => 'Document (' . $doc->document_type . ')',
+                'tag' => 'Document ('.$doc->document_type.')',
             ];
         }
 

@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\ActivityLog;
+use App\Models\Customer;
+use App\Models\FollowupTask;
+use App\Models\Product;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
-use App\Models\Customer;
-use App\Models\Product;
-use App\Models\FollowupTask;
-use App\Models\ActivityLog;
+use App\Services\CompanyFirmContext;
 use App\Services\DocumentTransactionService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -34,14 +35,14 @@ class OrderController extends Controller
 
         // High-level fulfillment & order book metrics
         $totalOrdersCount = $orders->count();
-        $pendingOrdersCount = $orders->filter(fn($o) => (float)$o->items->sum('shipped_qty') == 0 && (float)$o->items->sum('order_qty') > 0)->count();
-        $partialOrdersCount = $orders->filter(fn($o) => (float)$o->items->sum('shipped_qty') > 0 && (float)$o->items->sum('balance_qty') > 0)->count();
-        $completedOrdersCount = $orders->filter(fn($o) => (float)$o->items->sum('balance_qty') <= 0 || $o->status === 'COMPLETED')->count();
+        $pendingOrdersCount = $orders->filter(fn ($o) => (float) $o->items->sum('shipped_qty') == 0 && (float) $o->items->sum('order_qty') > 0)->count();
+        $partialOrdersCount = $orders->filter(fn ($o) => (float) $o->items->sum('shipped_qty') > 0 && (float) $o->items->sum('balance_qty') > 0)->count();
+        $completedOrdersCount = $orders->filter(fn ($o) => (float) $o->items->sum('balance_qty') <= 0 || $o->status === 'COMPLETED')->count();
 
-        $totalCommittedValue = (float)$orders->sum('total_amount');
-        $totalCommittedQty = (float)$orders->reduce(fn($carry, $o) => $carry + $o->items->sum('order_qty'), 0);
-        $totalShippedQty = (float)$orders->reduce(fn($carry, $o) => $carry + $o->items->sum('shipped_qty'), 0);
-        $totalPendingQty = (float)$orders->reduce(fn($carry, $o) => $carry + $o->items->sum('balance_qty'), 0);
+        $totalCommittedValue = (float) $orders->sum('total_amount');
+        $totalCommittedQty = (float) $orders->reduce(fn ($carry, $o) => $carry + $o->items->sum('order_qty'), 0);
+        $totalShippedQty = (float) $orders->reduce(fn ($carry, $o) => $carry + $o->items->sum('shipped_qty'), 0);
+        $totalPendingQty = (float) $orders->reduce(fn ($carry, $o) => $carry + $o->items->sum('balance_qty'), 0);
         $overallFulfillmentPct = $totalCommittedQty > 0 ? round(($totalShippedQty / $totalCommittedQty) * 100, 1) : 0;
 
         return view('orders.index', compact(
@@ -80,29 +81,45 @@ class OrderController extends Controller
         try {
             $totalOrderVal = 0;
             foreach ($validated['items'] as $it) {
-                $totalOrderVal += ((float)$it['order_qty'] * (float)$it['rate']);
+                $totalOrderVal += ((float) $it['order_qty'] * (float) $it['rate']);
+            }
+
+            // Enforce Customer Credit Limit Check
+            $cust = Customer::findOrFail($validated['customer_id']);
+            $creditCheck = $cust->checkCreditLimit($totalOrderVal);
+            if (! $creditCheck['allowed']) {
+                DB::rollBack();
+
+                return back()
+                    ->withInput()
+                    ->with('error', $creditCheck['message']);
+            }
+            if (! empty($creditCheck['message']) && $creditCheck['action'] === 'WARN') {
+                session()->flash('warning', $creditCheck['message']);
             }
 
             $orderNo = $validated['po_number'];
             if (empty($request->confirm_duplicate)) {
                 if (SalesOrder::where('po_number', $validated['po_number'])->orWhere('order_number', $validated['po_number'])->exists()) {
                     DB::rollBack();
+
                     return back()
                         ->withInput()
                         ->with('error', "A Sales Order with this PO Number ({$validated['po_number']}) already exists. To proceed anyway, please check 'Confirm Duplicate' and submit again.")
                         ->with('requires_duplicate_confirmation', true);
                 }
             }
-            
+
             // If user confirmed, ensure unique order_number
             if (SalesOrder::where('order_number', $orderNo)->exists()) {
-                $orderNo = $validated['po_number'] . '-' . rand(10, 99);
+                $orderNo = $validated['po_number'].'-'.rand(10, 99);
             }
 
-            $advanceRequired = (float)($validated['advance_required'] ?? 0);
+            $advanceRequired = (float) ($validated['advance_required'] ?? 0);
             $initialStatus = $advanceRequired > 0 ? 'ADVANCE_PENDING' : 'CONFIRMED';
 
             $order = SalesOrder::create([
+                'firm_id' => CompanyFirmContext::getCurrentFirmId(),
                 'order_number' => $orderNo,
                 'po_number' => $validated['po_number'],
                 'po_date' => Carbon::parse($validated['order_date']),
@@ -120,8 +137,8 @@ class OrderController extends Controller
             ]);
 
             foreach ($validated['items'] as $itemData) {
-                $qty = (float)$itemData['order_qty'];
-                $rate = (float)$itemData['rate'];
+                $qty = (float) $itemData['order_qty'];
+                $rate = (float) $itemData['rate'];
                 $itemVal = $qty * $rate;
 
                 SalesOrderItem::create([
@@ -152,7 +169,7 @@ class OrderController extends Controller
             FollowupTask::create([
                 'customer_id' => $cust->id,
                 'type' => 'SALES_FOLLOWUP',
-                'reason' => "New Purchase Order {$order->order_number} received for " . formatINR($totalOrderVal),
+                'reason' => "New Purchase Order {$order->order_number} received for ".formatINR($totalOrderVal),
                 'priority' => 'HIGH',
                 'due_date' => Carbon::now()->addDays(2),
                 'status' => 'PENDING',
@@ -164,18 +181,20 @@ class OrderController extends Controller
                 'customer_id' => $cust->id,
                 'activity_type' => 'NOTE',
                 'title' => "Purchase Order Received ({$order->order_number})",
-                'description' => "Total order value: " . formatINR($totalOrderVal) . " with " . count($validated['items']) . " product line item(s).",
+                'description' => 'Total order value: '.formatINR($totalOrderVal).' with '.count($validated['items']).' product line item(s).',
             ]);
 
             DB::commit();
-            return redirect()->route('orders.index')->with('success', "✓ Sales Order {$order->order_number} created successfully with " . count($validated['items']) . " item(s)!");
+
+            return redirect()->route('orders.index')->with('success', "✓ Sales Order {$order->order_number} created successfully with ".count($validated['items']).' item(s)!');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create sales order: ' . $e->getMessage(), [
+            Log::error('Failed to create sales order: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to create sales order: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to create sales order: '.$e->getMessage());
         }
     }
 
@@ -218,15 +237,15 @@ class OrderController extends Controller
 
             $totalOrderVal = 0;
             foreach ($validated['items'] as $it) {
-                $totalOrderVal += ((float)$it['order_qty'] * (float)$it['rate']);
+                $totalOrderVal += ((float) $it['order_qty'] * (float) $it['rate']);
             }
 
-            $newAdvReq = isset($validated['advance_required']) ? (float)$validated['advance_required'] : (float)$order->advance_required;
-            $newBal = max(0, $totalOrderVal - (float)$order->advance_received);
+            $newAdvReq = isset($validated['advance_required']) ? (float) $validated['advance_required'] : (float) $order->advance_required;
+            $newBal = max(0, $totalOrderVal - (float) $order->advance_received);
             $newStatus = $order->status;
-            if ($newStatus === 'ADVANCE_PENDING' && ($newAdvReq <= 0 || (float)$order->advance_received >= $newAdvReq)) {
+            if ($newStatus === 'ADVANCE_PENDING' && ($newAdvReq <= 0 || (float) $order->advance_received >= $newAdvReq)) {
                 $newStatus = 'CONFIRMED';
-            } elseif ($newStatus === 'CONFIRMED' && $newAdvReq > 0 && (float)$order->advance_received < $newAdvReq) {
+            } elseif ($newStatus === 'CONFIRMED' && $newAdvReq > 0 && (float) $order->advance_received < $newAdvReq) {
                 $newStatus = 'ADVANCE_PENDING';
             }
 
@@ -249,16 +268,17 @@ class OrderController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $itemId = $itemData['id'] ?? null;
                 $pId = $itemData['product_id'];
-                $qty = (float)$itemData['order_qty'];
-                $rate = (float)$itemData['rate'];
+                $qty = (float) $itemData['order_qty'];
+                $rate = (float) $itemData['rate'];
 
                 if ($itemId && isset($existingItemMap[$itemId])) {
                     // Update existing line item (preserving historic shipments)
                     $existing = $existingItemMap[$itemId];
-                    $shipped = (float)$existing->shipped_qty;
+                    $shipped = (float) $existing->shipped_qty;
 
                     if ($qty < $shipped) {
                         DB::rollBack();
+
                         return back()->with('error', "🚫 Order quantity ({$qty} KG) cannot be lower than the already dispatched quantity ({$shipped} KG) for {$existing->product?->product_name}.");
                     }
 
@@ -294,9 +314,10 @@ class OrderController extends Controller
 
             // Remove any line items deleted by user (only if 0 shipped quantity)
             foreach ($order->items as $it) {
-                if (!in_array($it->id, $submittedItemIds)) {
+                if (! in_array($it->id, $submittedItemIds)) {
                     if ($it->shipped_qty > 0) {
                         DB::rollBack();
+
                         return back()->with('error', "🚫 Cannot delete line item for {$it->product?->product_name} because {$it->shipped_qty} KG has already been dispatched.");
                     }
                     $it->delete();
@@ -313,18 +334,20 @@ class OrderController extends Controller
                 'customer_id' => $order->customer_id,
                 'activity_type' => 'NOTE',
                 'title' => "Purchase Order Revised to Rev {$order->revision_number} ({$order->order_number})",
-                'description' => "Reason: {$revisionReason} | Updated order value: " . formatINR($totalOrderVal) . " with " . count($validated['items']) . " line item(s).",
+                'description' => "Reason: {$revisionReason} | Updated order value: ".formatINR($totalOrderVal).' with '.count($validated['items']).' line item(s).',
             ]);
 
             DB::commit();
+
             return redirect()->route('orders.index')->with('success', "✓ Purchase Order {$order->order_number} revised to Rev {$order->revision_number} successfully! (Previous version safely archived to history)");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update sales order #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update sales order #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update order: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update order: '.$e->getMessage());
         }
     }
 
@@ -346,7 +369,7 @@ class OrderController extends Controller
                 'status' => $order->status,
                 'payment_terms' => $order->payment_terms,
                 'notes' => $order->notes,
-                'items' => $order->items->map(fn($it) => [
+                'items' => $order->items->map(fn ($it) => [
                     'id' => $it->id,
                     'product_id' => $it->product_id,
                     'product_name' => $it->product?->product_name ?? 'N/A',
@@ -358,7 +381,7 @@ class OrderController extends Controller
                     'balance_qty' => (float) $it->balance_qty,
                 ]),
             ],
-            'history' => $order->revisions->map(fn($rev) => [
+            'history' => $order->revisions->map(fn ($rev) => [
                 'id' => $rev->id,
                 'revision_number' => $rev->revision_number,
                 'revision_reason' => $rev->revision_reason,
@@ -389,8 +412,8 @@ class OrderController extends Controller
         }
 
         // RULE 4: Cannot delete if advance payment has been recorded
-        if ((float)$order->advance_received > 0 || $order->advanceReceipts()->count() > 0) {
-            return back()->with('error', "🚫 Disallowed: Cannot delete PO {$order->order_number} because an advance payment of " . formatINR($order->advance_received) . " has already been recorded against it.");
+        if ((float) $order->advance_received > 0 || $order->advanceReceipts()->count() > 0) {
+            return back()->with('error', "🚫 Disallowed: Cannot delete PO {$order->order_number} because an advance payment of ".formatINR($order->advance_received).' has already been recorded against it.');
         }
 
         DB::beginTransaction();
@@ -406,17 +429,19 @@ class OrderController extends Controller
                 'customer_id' => $custId,
                 'activity_type' => 'NOTE',
                 'title' => "Purchase Order Deleted ({$orderNo})",
-                'description' => "Cancelled / deleted Purchase Order record.",
+                'description' => 'Cancelled / deleted Purchase Order record.',
             ]);
 
             DB::commit();
+
             return redirect()->route('orders.index')->with('success', "✓ Purchase Order {$orderNo} has been deleted.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete sales order #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete sales order #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete order: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete order: '.$e->getMessage());
         }
     }
 
@@ -427,7 +452,7 @@ class OrderController extends Controller
     {
         $order = SalesOrder::with(['customer', 'invoices'])->findOrFail($id);
 
-        if (!$request->has('amount_received') && $request->has('amount')) {
+        if (! $request->has('amount_received') && $request->has('amount')) {
             $request->merge(['amount_received' => $request->input('amount')]);
         }
 
@@ -439,11 +464,11 @@ class OrderController extends Controller
             'remarks' => 'nullable|string|max:500',
         ]);
 
-        $amt = (float)$validated['amount_received'];
-        $remainingContractBalance = max(0, (float)$order->total_amount - (float)$order->advance_received);
+        $amt = (float) $validated['amount_received'];
+        $remainingContractBalance = max(0, (float) $order->total_amount - (float) $order->advance_received);
 
         if ($amt > ($remainingContractBalance + 0.01)) {
-            return back()->with('error', "🚫 Disallowed: Advance amount (" . formatINR($amt) . ") exceeds remaining contract balance (" . formatINR($remainingContractBalance) . ") on PO {$order->order_number}.");
+            return back()->with('error', '🚫 Disallowed: Advance amount ('.formatINR($amt).') exceeds remaining contract balance ('.formatINR($remainingContractBalance).") on PO {$order->order_number}.");
         }
 
         DB::beginTransaction();
@@ -458,19 +483,21 @@ class OrderController extends Controller
 
             // Deduct customer outstanding balance
             $cust = $order->customer;
-            if ($cust && (float)$cust->outstanding_amount > 0) {
-                $cust->decrement('outstanding_amount', min($amt, (float)$cust->outstanding_amount));
+            if ($cust && (float) $cust->outstanding_amount > 0) {
+                $cust->decrement('outstanding_amount', min($amt, (float) $cust->outstanding_amount));
             }
 
             DB::commit();
-            return back()->with('success', "✓ Advance payment of " . formatINR($amt) . " recorded against PO {$order->order_number} via {$receipt->payment_mode} (Ref: {$receipt->receipt_number})!");
+
+            return back()->with('success', '✓ Advance payment of '.formatINR($amt)." recorded against PO {$order->order_number} via {$receipt->payment_mode} (Ref: {$receipt->receipt_number})!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to record advance on sales order #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to record advance on sales order #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to record advance: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to record advance: '.$e->getMessage());
         }
     }
 }

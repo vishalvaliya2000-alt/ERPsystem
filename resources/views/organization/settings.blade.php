@@ -4,6 +4,28 @@
 
 @section('content')
 <div class="space-y-6 pb-12" x-data="{ isSaving: false }">
+    <!-- Top Navigation Tabs (Organization Hub) -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold border-b border-neutral-200">
+        <a href="{{ route('organization.settings') }}" class="px-4 py-2.5 rounded-xl bg-neutral-900 text-white shadow-xs whitespace-nowrap">
+            🏢 Organization Profile
+        </a>
+        <a href="{{ route('organization.team') }}" class="px-4 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors whitespace-nowrap">
+            👥 Team & Staff Access
+        </a>
+        <a href="{{ route('organization.departments') }}" class="px-4 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors whitespace-nowrap">
+            🏛️ 4 Fixed Departments
+        </a>
+        <a href="{{ route('organization.companies.index') }}" class="px-4 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors whitespace-nowrap">
+            🏭 Companies & Operating Firms
+        </a>
+        <a href="{{ route('whatsapp.settings') }}" class="px-4 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors whitespace-nowrap">
+            💬 WhatsApp Connect
+        </a>
+        <a href="{{ route('organization.audit-logs') }}" class="px-4 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors whitespace-nowrap">
+            🛡️ Security Audit Logs
+        </a>
+    </div>
+
     <!-- Header -->
     <div class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-center gap-4">

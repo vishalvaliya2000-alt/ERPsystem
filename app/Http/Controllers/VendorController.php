@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Vendor;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -12,6 +12,7 @@ class VendorController extends Controller
     public function index()
     {
         $vendors = Vendor::orderBy('company_name')->get();
+
         return view('vendors.index', compact('vendors'));
     }
 
@@ -30,7 +31,7 @@ class VendorController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $code = $validated['vendor_code'] ?: ('VEN-' . strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $validated['company_name']), 0, 3)) . '-' . rand(100, 999));
+        $code = $validated['vendor_code'] ?: ('VEN-'.strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $validated['company_name']), 0, 3)).'-'.rand(100, 999));
 
         DB::beginTransaction();
         try {
@@ -53,11 +54,12 @@ class VendorController extends Controller
             return back()->with('success', "✓ Vendor '{$vendor->company_name}' added successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create vendor: ' . $e->getMessage(), [
+            Log::error('Failed to create vendor: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to add vendor: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to add vendor: '.$e->getMessage());
         }
     }
 
@@ -84,11 +86,12 @@ class VendorController extends Controller
             return back()->with('success', "✓ Vendor '{$vendor->company_name}' updated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update vendor #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update vendor #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update vendor: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update vendor: '.$e->getMessage());
         }
     }
 
@@ -105,10 +108,11 @@ class VendorController extends Controller
             return back()->with('success', "✓ Vendor '{$name}' deleted successfully.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete vendor #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete vendor #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete vendor: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete vendor: '.$e->getMessage());
         }
     }
 }

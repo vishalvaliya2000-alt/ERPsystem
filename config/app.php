@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'central_domain' => env('APP_CENTRAL_DOMAIN', 'erpsaas.in'),
+    'tenant_domain' => env('APP_TENANT_DOMAIN', 'erpsaas.com'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

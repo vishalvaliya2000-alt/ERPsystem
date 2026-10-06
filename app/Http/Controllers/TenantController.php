@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Tenant;
 use App\Models\User;
-use App\Services\TenantManager;
 use App\Services\ColorPaletteService;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
+use App\Services\TenantManager;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class TenantController extends Controller
 {
     public function settings()
     {
         $tenant = TenantManager::getTenant();
+
         return view('organization.settings', compact('tenant'));
     }
 
@@ -70,11 +70,11 @@ class TenantController extends Controller
             } elseif ($request->hasFile('logo')) {
                 $file = $request->file('logo');
                 $path = $file->store('logos', 'public');
-                $tenant->logo_url = 'storage/' . $path;
+                $tenant->logo_url = 'storage/'.$path;
 
                 // If user didn't explicitly specify custom colors, auto-extract from newly uploaded logo
-                if (!$request->filled('primary_color')) {
-                    $fullPath = storage_path('app/public/' . $path);
+                if (! $request->filled('primary_color')) {
+                    $fullPath = storage_path('app/public/'.$path);
                     $extracted = ColorPaletteService::extractFromImage($fullPath);
                     $validated['primary_color'] = $extracted['primary_color'];
                     $validated['accent_color'] = $extracted['accent_color'];
@@ -88,9 +88,9 @@ class TenantController extends Controller
                 $accent = $validated['accent_color'] ?? $request->input('accent_color') ?: '#70c040';
                 $settings['theme'] = [
                     'primary_color' => $primary,
-                    'accent_color'  => $accent,
-                    'shades'        => ColorPaletteService::generateShades($primary),
-                    'updated_at'    => now()->toIso8601String(),
+                    'accent_color' => $accent,
+                    'shades' => ColorPaletteService::generateShades($primary),
+                    'updated_at' => now()->toIso8601String(),
                 ];
             }
             $tenant->settings = $settings;
@@ -106,11 +106,12 @@ class TenantController extends Controller
             return back()->with('success', "✓ Organization profile, logo & brand theme updated for {$tenant->name}!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to update tenant settings: ' . $e->getMessage(), [
+            Log::error('Failed to update tenant settings: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->except(['logo']),
             ]);
-            return back()->withInput()->with('error', 'Failed to update organization settings: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update organization settings: '.$e->getMessage());
         }
     }
 
@@ -118,6 +119,7 @@ class TenantController extends Controller
     {
         $tenant = TenantManager::getTenant();
         $members = User::where('tenant_id', $tenant->id)->get();
+
         return view('organization.team', compact('tenant', 'members'));
     }
 
@@ -138,7 +140,7 @@ class TenantController extends Controller
         try {
             $user = User::create([
                 'tenant_id' => $tenant->id,
-                'name' => trim($validated['first_name'] . ' ' . $validated['last_name']),
+                'name' => trim($validated['first_name'].' '.$validated['last_name']),
                 'email' => strtolower($validated['email']),
                 'phone' => $validated['phone'] ?? null,
                 'password' => Hash::make($validated['password']),
@@ -153,11 +155,12 @@ class TenantController extends Controller
             return back()->with('success', "✓ Team member {$user->name} created for {$tenant->name} with role {$validated['role']}!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to invite team member: ' . $e->getMessage(), [
+            Log::error('Failed to invite team member: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->except(['password']),
             ]);
-            return back()->withInput()->with('error', 'Failed to add team member: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to add team member: '.$e->getMessage());
         }
     }
 
@@ -167,7 +170,7 @@ class TenantController extends Controller
         $currentUser = auth()->user();
 
         if ($userId == $currentUser->id) {
-            return back()->with('error', "You cannot remove your own active account.");
+            return back()->with('error', 'You cannot remove your own active account.');
         }
 
         DB::beginTransaction();
@@ -180,10 +183,11 @@ class TenantController extends Controller
             return back()->with('success', "✓ User removed from {$tenant->name}.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to remove team member #{$userId}: " . $e->getMessage(), [
+            Log::error("Failed to remove team member #{$userId}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to remove team member: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to remove team member: '.$e->getMessage());
         }
     }
 }

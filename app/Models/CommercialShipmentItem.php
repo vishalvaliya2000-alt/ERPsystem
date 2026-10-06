@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToTenant;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,6 +15,7 @@ class CommercialShipmentItem extends Model
         'tenant_id',
         'commercial_shipment_id',
         'sales_order_item_id',
+        'batch_number',
         'quantity',
         'unit_value',
         'total_value',

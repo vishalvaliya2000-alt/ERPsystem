@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Transporter;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -12,6 +12,7 @@ class TransporterController extends Controller
     public function index()
     {
         $transporters = Transporter::orderBy('transporter_name')->get();
+
         return view('transporters.index', compact('transporters'));
     }
 
@@ -45,11 +46,12 @@ class TransporterController extends Controller
             return back()->with('success', "✓ Transporter '{$transporter->transporter_name}' added successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create transporter: ' . $e->getMessage(), [
+            Log::error('Failed to create transporter: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to add transporter: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to add transporter: '.$e->getMessage());
         }
     }
 
@@ -75,11 +77,12 @@ class TransporterController extends Controller
             return back()->with('success', "✓ Transporter '{$transporter->transporter_name}' updated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update transporter #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update transporter #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update transporter: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update transporter: '.$e->getMessage());
         }
     }
 
@@ -96,10 +99,11 @@ class TransporterController extends Controller
             return back()->with('success', "✓ Transporter '{$name}' deleted successfully.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete transporter #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete transporter #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete transporter: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete transporter: '.$e->getMessage());
         }
     }
 }

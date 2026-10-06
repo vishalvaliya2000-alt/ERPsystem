@@ -6,11 +6,11 @@ use App\Models\User;
 test('guest pages contain descriptive <title> tags', function () {
     $loginResponse = $this->get(route('login'));
     $loginResponse->assertStatus(200);
-    $loginResponse->assertSee('Sign In — ' . config('app.name', 'Vyapar ERP'));
+    $loginResponse->assertSee('Sign In — '.config('app.name', 'Vyapar ERP'));
 
     $registerResponse = $this->get(route('register'));
     $registerResponse->assertStatus(200);
-    $registerResponse->assertSee('Register Your Business — ' . config('app.name', 'Vyapar ERP'));
+    $registerResponse->assertSee('Register Your Business — '.config('app.name', 'Vyapar ERP'));
 });
 
 test('authenticated dashboard and primary navigation pages render their specific <title> tags', function () {
@@ -28,7 +28,7 @@ test('authenticated dashboard and primary navigation pages render their specific
     ]);
 
     $user = User::first() ?? User::factory()->create(['tenant_id' => $tenant->id]);
-    if (!$user->tenant_id) {
+    if (! $user->tenant_id) {
         $user->tenant_id = $tenant->id;
         $user->save();
     }

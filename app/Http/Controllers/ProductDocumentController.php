@@ -43,7 +43,7 @@ class ProductDocumentController extends Controller
 
         $documents = $product->documents
             ->where('document_type', '!=', ProductDocument::TYPE_PHOTO)
-            ->sortBy(fn($d) => [$d->document_type, !$d->is_latest, -$d->id])
+            ->sortBy(fn ($d) => [$d->document_type, ! $d->is_latest, -$d->id])
             ->values()
             ->map(function ($d) {
                 return array_merge($d->toArray(), [
@@ -72,7 +72,7 @@ class ProductDocumentController extends Controller
             ],
             'photos' => $photos,
             'documents' => $documents,
-            'shares' => $product->shares->map(fn($s) => [
+            'shares' => $product->shares->map(fn ($s) => [
                 'id' => $s->id,
                 'title' => $s->title,
                 'share_url' => route('products.documents.shared', $s->share_token),
@@ -100,7 +100,7 @@ class ProductDocumentController extends Controller
         ]);
 
         $files = $request->file('photos');
-        if (!is_array($files)) {
+        if (! is_array($files)) {
             $files = [$files];
         }
 
@@ -114,7 +114,7 @@ class ProductDocumentController extends Controller
         DB::beginTransaction();
         try {
             foreach ($files as $index => $file) {
-                if (!$file || !$file->isValid()) {
+                if (! $file || ! $file->isValid()) {
                     continue;
                 }
 
@@ -123,7 +123,7 @@ class ProductDocumentController extends Controller
                 $mimeType = $file->getMimeType();
                 $fileSize = $file->getSize();
 
-                $storedName = Str::random(32) . '.' . $extension;
+                $storedName = Str::random(32).'.'.$extension;
                 $folder = "product-media/{$product->tenant_id}/{$product->id}/photos";
                 $filePath = $file->storeAs($folder, $storedName, $disk);
 
@@ -153,15 +153,15 @@ class ProductDocumentController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => count($uploaded) . ' photo(s) uploaded successfully.',
+                    'message' => count($uploaded).' photo(s) uploaded successfully.',
                     'photos' => $uploaded,
                 ]);
             }
 
-            return back()->with('success', count($uploaded) . ' photo(s) uploaded successfully.');
+            return back()->with('success', count($uploaded).' photo(s) uploaded successfully.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to upload product photos: " . $e->getMessage(), [
+            Log::error('Failed to upload product photos: '.$e->getMessage(), [
                 'product_id' => $productId,
                 'exception' => $e,
             ]);
@@ -169,11 +169,11 @@ class ProductDocumentController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to upload photos: ' . $e->getMessage(),
+                    'message' => 'Failed to upload photos: '.$e->getMessage(),
                 ], 422);
             }
 
-            return back()->with('error', 'Failed to upload photos: ' . $e->getMessage());
+            return back()->with('error', 'Failed to upload photos: '.$e->getMessage());
         }
     }
 
@@ -214,8 +214,8 @@ class ProductDocumentController extends Controller
         $type = strtoupper($request->input('document_type'));
         $title = $request->input('title') ?: ($request->input('file_name') ?: pathinfo($originalName, PATHINFO_FILENAME));
         $fileName = $request->input('file_name') ?: $originalName;
-        if (!str_contains($fileName, '.') && !empty($extension)) {
-            $fileName .= '.' . $extension;
+        if (! str_contains($fileName, '.') && ! empty($extension)) {
+            $fileName .= '.'.$extension;
         }
 
         $version = $request->input('version') ?: null;
@@ -223,7 +223,7 @@ class ProductDocumentController extends Controller
         $isLatest = $request->boolean('is_latest', true);
         $notes = $request->input('notes') ?: null;
 
-        $storedName = Str::random(32) . '.' . $extension;
+        $storedName = Str::random(32).'.'.$extension;
         $folder = "product-media/{$product->tenant_id}/{$product->id}/docs";
         $filePath = $file->storeAs($folder, $storedName, $disk);
 
@@ -267,7 +267,7 @@ class ProductDocumentController extends Controller
             return back()->with('success', "✓ Document '{$originalName}' uploaded successfully.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to upload document: " . $e->getMessage(), [
+            Log::error('Failed to upload document: '.$e->getMessage(), [
                 'product_id' => $productId,
                 'exception' => $e,
             ]);
@@ -275,11 +275,11 @@ class ProductDocumentController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to upload document: ' . $e->getMessage(),
+                    'message' => 'Failed to upload document: '.$e->getMessage(),
                 ], 422);
             }
 
-            return back()->with('error', 'Failed to upload document: ' . $e->getMessage());
+            return back()->with('error', 'Failed to upload document: '.$e->getMessage());
         }
     }
 
@@ -310,6 +310,7 @@ class ProductDocumentController extends Controller
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -322,7 +323,7 @@ class ProductDocumentController extends Controller
         $product = Product::findOrFail($productId);
         $photoIds = $request->input('photo_ids', []);
 
-        if (!is_array($photoIds) || empty($photoIds)) {
+        if (! is_array($photoIds) || empty($photoIds)) {
             return response()->json(['success' => false, 'message' => 'Invalid photo IDs.'], 422);
         }
 
@@ -332,13 +333,14 @@ class ProductDocumentController extends Controller
                 ProductDocument::where('product_id', $product->id)
                     ->where('document_type', ProductDocument::TYPE_PHOTO)
                     ->where('id', $id)
-                    ->update(['sort_order' => (int)$order]);
+                    ->update(['sort_order' => (int) $order]);
             }
             DB::commit();
 
             return response()->json(['success' => true, 'message' => 'Photos reordered successfully.']);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -351,7 +353,7 @@ class ProductDocumentController extends Controller
         $product = Product::findOrFail($productId);
         $doc = ProductDocument::where('product_id', $product->id)->findOrFail($docId);
 
-        $newVal = !$doc->is_latest;
+        $newVal = ! $doc->is_latest;
 
         DB::beginTransaction();
         try {
@@ -372,6 +374,7 @@ class ProductDocumentController extends Controller
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -385,7 +388,7 @@ class ProductDocumentController extends Controller
         $doc = ProductDocument::where('product_id', $product->id)->findOrFail($docId);
 
         $disk = $this->getStorageDisk();
-        if (!Storage::disk($disk)->exists($doc->file_path)) {
+        if (! Storage::disk($disk)->exists($doc->file_path)) {
             abort(404, 'File not found on storage.');
         }
 
@@ -394,7 +397,7 @@ class ProductDocumentController extends Controller
 
         return Response::make($fileContent, 200, [
             'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="' . addslashes($doc->file_name) . '"',
+            'Content-Disposition' => 'inline; filename="'.addslashes($doc->file_name).'"',
             'Cache-Control' => 'private, max-age=86400',
         ]);
     }
@@ -408,7 +411,7 @@ class ProductDocumentController extends Controller
         $doc = ProductDocument::where('product_id', $product->id)->findOrFail($docId);
 
         $disk = $this->getStorageDisk();
-        if (!Storage::disk($disk)->exists($doc->file_path)) {
+        if (! Storage::disk($disk)->exists($doc->file_path)) {
             abort(404, 'File not found on storage.');
         }
 
@@ -428,10 +431,10 @@ class ProductDocumentController extends Controller
         }
 
         $disk = $this->getStorageDisk();
-        $zipFileName = Str::slug($product->product_code ?: $product->product_name) . '_Documents_' . date('Ymd') . '.zip';
+        $zipFileName = Str::slug($product->product_code ?: $product->product_name).'_Documents_'.date('Ymd').'.zip';
         $tempZipPath = tempnam(sys_get_temp_dir(), 'zip_');
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             abort(500, 'Could not create ZIP file.');
         }
@@ -440,7 +443,7 @@ class ProductDocumentController extends Controller
         foreach ($docs as $doc) {
             if (Storage::disk($disk)->exists($doc->file_path)) {
                 $content = Storage::disk($disk)->get($doc->file_path);
-                
+
                 // Group inside folders in the ZIP: Photos, COA, Specifications, MSDS, Other
                 $folder = match ($doc->document_type) {
                     ProductDocument::TYPE_PHOTO => 'Photos',
@@ -458,7 +461,7 @@ class ProductDocumentController extends Controller
                 while (in_array($zipEntryName, $addedNames)) {
                     $pi = pathinfo($filename);
                     $nameOnly = $pi['filename'];
-                    $ext = !empty($pi['extension']) ? '.' . $pi['extension'] : '';
+                    $ext = ! empty($pi['extension']) ? '.'.$pi['extension'] : '';
                     $zipEntryName = "{$folder}/{$nameOnly}_{$counter}{$ext}";
                     $counter++;
                 }
@@ -516,13 +519,13 @@ class ProductDocumentController extends Controller
             return back()->with('success', 'Document deleted successfully.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete product document: " . $e->getMessage());
+            Log::error('Failed to delete product document: '.$e->getMessage());
 
             if (request()->wantsJson() || request()->ajax()) {
                 return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
             }
 
-            return back()->with('error', 'Failed to delete document: ' . $e->getMessage());
+            return back()->with('error', 'Failed to delete document: '.$e->getMessage());
         }
     }
 
@@ -551,7 +554,7 @@ class ProductDocumentController extends Controller
         };
 
         $passwordHash = null;
-        if (!empty($request->input('password'))) {
+        if (! empty($request->input('password'))) {
             $passwordHash = Hash::make($request->input('password'));
         }
 
@@ -583,7 +586,7 @@ class ProductDocumentController extends Controller
             'share_url' => $shareUrl,
             'share_token' => $token,
             'expires_at' => $expiresAt ? $expiresAt->format('d M Y, h:i A') : 'Never',
-            'has_password' => !empty($passwordHash),
+            'has_password' => ! empty($passwordHash),
             'share' => $share,
         ]);
     }
@@ -624,7 +627,7 @@ class ProductDocumentController extends Controller
         // 2. Check password protection
         if ($share->has_password) {
             $sessionKey = "doc_share_verified_{$share->id}";
-            if (!$request->session()->get($sessionKey)) {
+            if (! $request->session()->get($sessionKey)) {
                 return view('products.share_password', compact('share'));
             }
         }
@@ -637,7 +640,7 @@ class ProductDocumentController extends Controller
         $allDocs = $share->getDocuments();
         $photos = $allDocs->where('document_type', ProductDocument::TYPE_PHOTO)->sortBy('sort_order')->values();
         $documents = $allDocs->where('document_type', '!=', ProductDocument::TYPE_PHOTO)
-            ->sortBy(fn($d) => [$d->document_type, !$d->is_latest, -$d->id])
+            ->sortBy(fn ($d) => [$d->document_type, ! $d->is_latest, -$d->id])
             ->values();
 
         $product = $share->product;
@@ -659,6 +662,7 @@ class ProductDocumentController extends Controller
         if ($share->verifyPassword($request->input('password'))) {
             $sessionKey = "doc_share_verified_{$share->id}";
             $request->session()->put($sessionKey, true);
+
             return redirect()->route('products.documents.shared', $shareToken);
         }
 
@@ -675,18 +679,18 @@ class ProductDocumentController extends Controller
             abort(410, 'This share link has expired.');
         }
 
-        if ($share->has_password && !request()->session()->get("doc_share_verified_{$share->id}")) {
+        if ($share->has_password && ! request()->session()->get("doc_share_verified_{$share->id}")) {
             abort(403, 'Password required.');
         }
 
-        if (!empty($share->selected_document_ids) && !in_array((int)$docId, $share->selected_document_ids)) {
+        if (! empty($share->selected_document_ids) && ! in_array((int) $docId, $share->selected_document_ids)) {
             abort(403, 'Document not included in this share.');
         }
 
         $doc = ProductDocument::where('product_id', $share->product_id)->findOrFail($docId);
         $disk = $this->getStorageDisk();
 
-        if (!Storage::disk($disk)->exists($doc->file_path)) {
+        if (! Storage::disk($disk)->exists($doc->file_path)) {
             abort(404, 'File not found on storage.');
         }
 
@@ -703,18 +707,18 @@ class ProductDocumentController extends Controller
             abort(410, 'This share link has expired.');
         }
 
-        if ($share->has_password && !request()->session()->get("doc_share_verified_{$share->id}")) {
+        if ($share->has_password && ! request()->session()->get("doc_share_verified_{$share->id}")) {
             abort(403, 'Password required.');
         }
 
-        if (!empty($share->selected_document_ids) && !in_array((int)$docId, $share->selected_document_ids)) {
+        if (! empty($share->selected_document_ids) && ! in_array((int) $docId, $share->selected_document_ids)) {
             abort(403, 'Document not included in this share.');
         }
 
         $doc = ProductDocument::where('product_id', $share->product_id)->findOrFail($docId);
         $disk = $this->getStorageDisk();
 
-        if (!Storage::disk($disk)->exists($doc->file_path)) {
+        if (! Storage::disk($disk)->exists($doc->file_path)) {
             abort(404, 'File not found on storage.');
         }
 
@@ -723,7 +727,7 @@ class ProductDocumentController extends Controller
 
         return Response::make($fileContent, 200, [
             'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="' . addslashes($doc->file_name) . '"',
+            'Content-Disposition' => 'inline; filename="'.addslashes($doc->file_name).'"',
             'Cache-Control' => 'private, max-age=86400',
         ]);
     }
@@ -738,7 +742,7 @@ class ProductDocumentController extends Controller
             abort(410, 'This share link has expired.');
         }
 
-        if ($share->has_password && !request()->session()->get("doc_share_verified_{$share->id}")) {
+        if ($share->has_password && ! request()->session()->get("doc_share_verified_{$share->id}")) {
             abort(403, 'Password required.');
         }
 
@@ -750,10 +754,10 @@ class ProductDocumentController extends Controller
         }
 
         $disk = $this->getStorageDisk();
-        $zipFileName = Str::slug($product->product_code ?: $product->product_name) . '_Documentation.zip';
+        $zipFileName = Str::slug($product->product_code ?: $product->product_name).'_Documentation.zip';
         $tempZipPath = tempnam(sys_get_temp_dir(), 'shared_zip_');
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             abort(500, 'Could not create ZIP file.');
         }
@@ -762,7 +766,7 @@ class ProductDocumentController extends Controller
         foreach ($docs as $doc) {
             if (Storage::disk($disk)->exists($doc->file_path)) {
                 $content = Storage::disk($disk)->get($doc->file_path);
-                
+
                 $folder = match ($doc->document_type) {
                     ProductDocument::TYPE_PHOTO => 'Photos',
                     ProductDocument::TYPE_COA => 'COA',
@@ -778,7 +782,7 @@ class ProductDocumentController extends Controller
                 while (in_array($zipEntryName, $addedNames)) {
                     $pi = pathinfo($filename);
                     $nameOnly = $pi['filename'];
-                    $ext = !empty($pi['extension']) ? '.' . $pi['extension'] : '';
+                    $ext = ! empty($pi['extension']) ? '.'.$pi['extension'] : '';
                     $zipEntryName = "{$folder}/{$nameOnly}_{$counter}{$ext}";
                     $counter++;
                 }

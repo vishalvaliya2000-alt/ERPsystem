@@ -245,7 +245,7 @@ test('public customer share portal requires password if protected and allows vie
         'product_id' => $this->product->id,
         'document_type' => ProductDocument::TYPE_COA,
         'file_name' => 'Verified_COA.pdf',
-        'file_path' => 'product_documents/' . $this->product->id . '/test.pdf',
+        'file_path' => 'product_documents/'.$this->product->id.'/test.pdf',
         'file_size' => 1024,
         'mime_type' => 'application/pdf',
         'is_latest' => true,

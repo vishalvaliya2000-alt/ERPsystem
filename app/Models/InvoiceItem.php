@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToTenant;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -15,18 +14,33 @@ class InvoiceItem extends Model
         'tenant_id',
         'invoice_id',
         'commercial_shipment_item_id',
+        'commercial_shipment_id',
         'sales_order_item_id',
         'sales_order_id',
         'product_id',
+        'batch_number',
+        'description',
+        'hsn_code',
         'quantity',
+        'uom',
         'rate',
+        'unit_cost',
+        'line_cost',
+        'line_profit',
         'amount',
+        'gst_rate',
+        'gst_amount',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:2',
         'rate' => 'decimal:2',
+        'unit_cost' => 'decimal:2',
+        'line_cost' => 'decimal:2',
+        'line_profit' => 'decimal:2',
         'amount' => 'decimal:2',
+        'gst_rate' => 'decimal:2',
+        'gst_amount' => 'decimal:2',
     ];
 
     public function invoice(): BelongsTo
@@ -52,5 +66,10 @@ class InvoiceItem extends Model
     public function commercialShipmentItem(): BelongsTo
     {
         return $this->belongsTo(CommercialShipmentItem::class, 'commercial_shipment_item_id');
+    }
+
+    public function commercialShipment(): BelongsTo
+    {
+        return $this->belongsTo(CommercialShipment::class, 'commercial_shipment_id');
     }
 }

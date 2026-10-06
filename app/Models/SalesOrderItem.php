@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToTenant;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -31,6 +30,18 @@ class SalesOrderItem extends Model
         'shipped_qty' => 'decimal:2',
         'balance_qty' => 'decimal:2',
     ];
+
+    protected static function booted()
+    {
+        static::saving(function ($item) {
+            if ($item->order_value === null && $item->order_qty !== null && $item->rate !== null) {
+                $item->order_value = round((float) $item->order_qty * (float) $item->rate, 2);
+            }
+            if ($item->balance_qty === null && $item->order_qty !== null) {
+                $item->balance_qty = (float) $item->order_qty - (float) ($item->shipped_qty ?? 0);
+            }
+        });
+    }
 
     public function salesOrder(): BelongsTo
     {

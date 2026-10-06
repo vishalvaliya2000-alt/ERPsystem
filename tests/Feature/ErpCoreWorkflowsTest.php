@@ -2,6 +2,7 @@
 
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Sample;
 use App\Models\Tenant;
 use App\Models\User;
@@ -148,7 +149,7 @@ test('different tenants can independently create products and categories with id
 
     // Tenant A creates Onion Products
     TenantManager::setTenant($tenantA);
-    $catA = \App\Models\ProductCategory::create([
+    $catA = ProductCategory::create([
         'tenant_id' => $tenantA->id,
         'name' => 'Onion Products',
         'slug' => 'onion',
@@ -163,7 +164,7 @@ test('different tenants can independently create products and categories with id
 
     // Tenant B creates identical category and SKU independently
     TenantManager::setTenant($tenantB);
-    $catB = \App\Models\ProductCategory::create([
+    $catB = ProductCategory::create([
         'tenant_id' => $tenantB->id,
         'name' => 'Onion Products',
         'slug' => 'onion',
@@ -181,4 +182,3 @@ test('different tenants can independently create products and categories with id
     expect($catA->tenant_id)->toBe($tenantA->id);
     expect($catB->tenant_id)->toBe($tenantB->id);
 });
-

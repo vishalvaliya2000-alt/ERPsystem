@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
+use Spatie\Permission\Models\Role;
 
 class CreateNewUser implements CreatesNewUsers
 {
@@ -94,12 +95,12 @@ class CreateNewUser implements CreatesNewUsers
                 ]);
 
                 try {
-                    if (class_exists(\Spatie\Permission\Models\Role::class)) {
-                        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'OWNER', 'guard_name' => 'web']);
+                    if (class_exists(Role::class)) {
+                        Role::firstOrCreate(['name' => 'OWNER', 'guard_name' => 'web']);
                         $user->assignRole('OWNER');
                     }
                 } catch (\Throwable $e) {
-                    Log::warning("Role assignment notice: " . $e->getMessage());
+                    Log::warning('Role assignment notice: '.$e->getMessage());
                 }
 
                 return $user;
@@ -107,13 +108,13 @@ class CreateNewUser implements CreatesNewUsers
         } catch (ValidationException $ve) {
             throw $ve;
         } catch (\Throwable $e) {
-            Log::error('User registration failed: ' . $e->getMessage(), [
+            Log::error('User registration failed: '.$e->getMessage(), [
                 'exception' => $e,
                 'email' => $input['email'] ?? null,
                 'company' => $input['company_name'] ?? null,
             ]);
             throw ValidationException::withMessages([
-                'email' => 'Unable to complete registration: ' . $e->getMessage(),
+                'email' => 'Unable to complete registration: '.$e->getMessage(),
             ]);
         }
     }

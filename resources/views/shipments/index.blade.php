@@ -314,8 +314,8 @@
                 </div>
 
                 <!-- Card Footer: Quick Actions -->
-                <div class="p-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div>
+                <div class="p-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                         @if($s->status === 'SCHEDULED')
                             <button
                                 type="button"
@@ -332,11 +332,41 @@
                                 class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-white hover:bg-blue-50 border border-slate-200 shadow-2xs transition-colors"
                             >
                                 <span>📄</span>
-                                <span>View LR Copy</span>
+                                <span>LR Copy</span>
+                            </a>
+                        @endif
+
+                        @if($s->ewayBill)
+                            <a
+                                href="{{ route('eway-bills.show', $s->ewayBill->id) }}"
+                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-extrabold border shadow-2xs transition-all {{ $s->ewayBill->status === 'GENERATED' ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-200' }}"
+                                title="Form GST EWB-01"
+                            >
+                                <span>⚡</span>
+                                <span>EWB #{{ substr($s->ewayBill->eway_bill_number, -6) }}</span>
                             </a>
                         @else
-                            <span class="text-[11px] text-slate-400 italic pl-1">No LR file</span>
+                            <button
+                                type="button"
+                                @click="openEwayModal(@js($s))"
+                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-neutral-900 text-[#D7FF53] hover:bg-black border border-neutral-800 shadow-2xs transition-all cursor-pointer"
+                                title="Generate Statutory Form GST EWB-01"
+                            >
+                                <span>⚡</span>
+                                <span>E-Way Bill</span>
+                            </button>
                         @endif
+
+                        <form action="{{ route('shipments.whatsapp', $s->id) }}" method="POST" class="inline">
+                            @csrf
+                            <button
+                                type="submit"
+                                class="p-1.5 rounded-xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 shadow-2xs transition-colors cursor-pointer text-xs font-bold inline-flex items-center"
+                                title="Send LR Tracking to Party via WhatsApp"
+                            >
+                                💬
+                            </button>
+                        </form>
                     </div>
 
                     <div class="flex items-center gap-1.5">
@@ -549,6 +579,36 @@
                                                 📄
                                             </a>
                                         @endif
+
+                                        @if($s->ewayBill)
+                                            <a
+                                                href="{{ route('eway-bills.show', $s->ewayBill->id) }}"
+                                                class="px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors {{ $s->ewayBill->status === 'GENERATED' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}"
+                                                title="View Form GST EWB-01"
+                                            >
+                                                ⚡ EWB
+                                            </a>
+                                        @else
+                                            <button
+                                                type="button"
+                                                @click="openEwayModal(@js($s))"
+                                                class="px-2 py-1 rounded-lg text-[10px] font-bold bg-neutral-900 text-[#D7FF53] hover:bg-black border border-neutral-800 cursor-pointer shadow-2xs"
+                                                title="Generate E-Way Bill"
+                                            >
+                                                ⚡ EWB
+                                            </button>
+                                        @endif
+
+                                        <form action="{{ route('shipments.whatsapp', $s->id) }}" method="POST" class="inline">
+                                            @csrf
+                                            <button
+                                                type="submit"
+                                                class="p-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold cursor-pointer"
+                                                title="WhatsApp LR Tracking"
+                                            >
+                                                💬
+                                            </button>
+                                        </form>
 
                                         <button
                                             type="button"
@@ -1101,6 +1161,104 @@
         </div>
     </div>
     </template>
+
+    <!-- 4. GENERATE STATUTORY E-WAY BILL MODAL -->
+    <template x-if="isEwayModalOpen">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-neutral-200">
+            <div class="flex items-center justify-between border-b border-neutral-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-neutral-900 text-[#D7FF53] flex items-center justify-center font-black text-lg">
+                        ⚡
+                    </div>
+                    <div>
+                        <h3 class="font-black text-neutral-900 text-base font-display">Generate E-Way Bill</h3>
+                        <p class="text-[11px] text-neutral-500 font-mono">Form GST EWB-01 · Rule 138 Transit Pass</p>
+                    </div>
+                </div>
+                <button type="button" @click="isEwayModalOpen = false" class="text-neutral-400 hover:text-neutral-600 text-lg cursor-pointer">✕</button>
+            </div>
+
+            <form :action="'/shipments/' + ewayShipment.id + '/eway'" method="POST" class="space-y-4 text-xs">
+                @csrf
+                <div class="p-3 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-1">
+                    <div class="flex justify-between text-neutral-700">
+                        <span class="font-bold">Shipment Consignment:</span>
+                        <span class="font-mono font-black text-neutral-900" x-text="ewayShipment.lr_number || ewayShipment.shipment_number"></span>
+                    </div>
+                    <div class="flex justify-between text-neutral-700">
+                        <span class="font-bold">Consignee Destination:</span>
+                        <span class="font-bold text-neutral-900" x-text="ewayShipment.destination || 'Consignee Hub'"></span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-neutral-700 mb-1">Transit Distance (KM) *</label>
+                        <input
+                            type="number"
+                            name="distance_km"
+                            x-model="ewayDistance"
+                            min="1"
+                            max="4000"
+                            required
+                            class="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-[#091315] font-semibold"
+                        >
+                        <span class="text-[10px] text-neutral-400 block mt-0.5">1 day validity per 200 km</span>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-neutral-700 mb-1">Destination PIN Code</label>
+                        <input
+                            type="text"
+                            name="destination_pincode"
+                            x-model="ewayPincode"
+                            maxlength="6"
+                            placeholder="e.g. 380015"
+                            class="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-[#091315] font-mono"
+                        >
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-neutral-700 mb-1">Vehicle / Truck No. *</label>
+                        <input
+                            type="text"
+                            name="vehicle_number"
+                            x-model="ewayVehicle"
+                            required
+                            placeholder="e.g. GJ01AB1234"
+                            class="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-[#091315] font-mono uppercase"
+                        >
+                    </div>
+                    <div>
+                        <label class="block font-bold text-neutral-700 mb-1">Transporter / Carrier</label>
+                        <input
+                            type="text"
+                            name="transporter"
+                            x-model="ewayTransporter"
+                            placeholder="Carrier Name"
+                            class="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-[#091315]"
+                        >
+                    </div>
+                </div>
+
+                <div class="p-3 bg-[#F3FED4]/50 border border-[#D7FF53] rounded-2xl text-[11px] text-neutral-800">
+                    <span class="font-extrabold block">Official Statutory Document:</span>
+                    <span>Generates a unique 12-digit government E-way bill number with encrypted verification QR code and Part-A / Part-B conveyance slip.</span>
+                </div>
+
+                <div class="pt-3 border-t border-neutral-100 flex justify-end gap-2">
+                    <button type="button" @click="isEwayModalOpen = false" class="px-5 py-2 font-bold text-neutral-600 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer">Cancel</button>
+                    <button type="submit" class="px-5 py-2 font-extrabold text-[#091315] bg-[#D7FF53] hover:bg-[#c8f043] rounded-full shadow-2xs border border-[#c8f043] transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>⚡</span>
+                        <span>Generate E-Way Bill</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </template>
 </div>
 
 <script>
@@ -1217,6 +1375,20 @@
                 this.editShipment = shipment;
                 this.editShipmentDate = formatInputDate(shipment.shipment_date_formatted || shipment.shipment_date) || '{{ date("Y-m-d") }}';
                 this.isEditModalOpen = true;
+            },
+            isEwayModalOpen: false,
+            ewayShipment: {},
+            ewayDistance: 120,
+            ewayPincode: '',
+            ewayVehicle: '',
+            ewayTransporter: '',
+            openEwayModal(shipment) {
+                this.ewayShipment = shipment;
+                this.ewayVehicle = shipment.vehicle_number || '';
+                this.ewayTransporter = (shipment.transporter && shipment.transporter !== 'TBD (To Be Decided)' && shipment.transporter !== 'TBD') ? shipment.transporter : '';
+                this.ewayDistance = 120;
+                this.ewayPincode = '';
+                this.isEwayModalOpen = true;
             }
         }
     }

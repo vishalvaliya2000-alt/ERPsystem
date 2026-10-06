@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Tenant;
-use App\Models\User;
 
 class TenantManager
 {
@@ -42,6 +41,7 @@ class TenantManager
             }
 
             $tenant = static::getTenant();
+
             return $tenant ? (int) $tenant->id : 1;
         } catch (\Throwable $e) {
             return 1;

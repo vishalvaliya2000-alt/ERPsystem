@@ -1,14 +1,12 @@
 <?php
 
+use App\Livewire\Common\CommandPalette;
 use App\Models\Customer;
-use App\Models\Invoice;
-use App\Models\CommercialShipment;
 use App\Models\SalesOrder;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TenantManager;
 use Livewire\Livewire;
-use App\Livewire\Common\CommandPalette;
 
 beforeEach(function () {
     $this->tenantA = Tenant::first() ?? Tenant::create([

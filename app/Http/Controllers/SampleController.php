@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Sample;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Product;
+use App\Models\Sample;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -38,7 +38,7 @@ class SampleController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
-        $sampleNumber = 'SMP-' . date('Y') . '-' . rand(100, 999);
+        $sampleNumber = 'SMP-'.date('Y').'-'.rand(100, 999);
 
         DB::beginTransaction();
         try {
@@ -60,11 +60,12 @@ class SampleController extends Controller
             return back()->with('success', "✓ Sample {$sample->sample_number} dispatched successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to create sample dispatch: ' . $e->getMessage(), [
+            Log::error('Failed to create sample dispatch: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to dispatch sample: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to dispatch sample: '.$e->getMessage());
         }
     }
 
@@ -89,11 +90,12 @@ class SampleController extends Controller
             return back()->with('success', "✓ Sample {$sample->sample_number} updated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update sample #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update sample #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->withInput()->with('error', 'Failed to update sample: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to update sample: '.$e->getMessage());
         }
     }
 
@@ -123,17 +125,18 @@ class SampleController extends Controller
             return back()->with('success', "✓ Sample {$sample->sample_number} status updated successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update status for sample #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update status for sample #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to update sample status: ' . $e->getMessage(),
+                    'message' => 'Failed to update sample status: '.$e->getMessage(),
                 ], 500);
             }
-            return back()->with('error', 'Failed to update sample status: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to update sample status: '.$e->getMessage());
         }
     }
 
@@ -150,10 +153,11 @@ class SampleController extends Controller
             return back()->with('success', "✓ Sample {$num} deleted successfully.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to delete sample #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to delete sample #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Failed to delete sample: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to delete sample: '.$e->getMessage());
         }
     }
 }

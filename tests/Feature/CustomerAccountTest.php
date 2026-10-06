@@ -34,10 +34,10 @@ test('Customer::generateNextCode generates sequential zero-padded CUST-xxxx code
 
     $nextCode = Customer::generateNextCode($this->tenant->id);
     expect($nextCode)->toMatch('/^CUST-\d{4}$/');
-    
+
     preg_match('/CUST-(\d+)/', $initialCode, $m1);
     preg_match('/CUST-(\d+)/', $nextCode, $m2);
-    expect((int)$m2[1])->toBeGreaterThan((int)$m1[1]);
+    expect((int) $m2[1])->toBeGreaterThan((int) $m1[1]);
 });
 
 test('customer creation stores Legal Name and Trade Name and auto-generates Customer Code when omitted', function () {
@@ -45,7 +45,7 @@ test('customer creation stores Legal Name and Trade Name and auto-generates Cust
         'customer_code' => '',
         'company_name' => 'Balaji Agro Industries Pvt Ltd',
         'trade_name' => 'Balaji Agro Brand',
-        'gst_number' => '24AAACB' . rand(1000, 9999) . 'F1Z5',
+        'gst_number' => '24AAACB'.rand(1000, 9999).'F1Z5',
         'primary_contact_person' => 'Bhavesh Patel',
         'primary_phone' => '9898012345',
         'city' => 'Mahuva',
@@ -66,7 +66,7 @@ test('customer creation accepts legal_name attribute directly', function () {
     $response = $this->actingAs($this->user)->post(route('customers.store'), [
         'legal_name' => 'Kisan Food Processors LLP',
         'trade_name' => 'Kisan Pure Foods',
-        'gst_number' => '24AAACK' . rand(1000, 9999) . 'F1Z6',
+        'gst_number' => '24AAACK'.rand(1000, 9999).'F1Z6',
         'city' => 'Bhavnagar',
     ]);
 
@@ -104,12 +104,12 @@ test('executive dashboard does NOT render Documents Requiring Attention card', f
 test('every new tenant starts customer code sequence from CUST-0001 independently', function () {
     $tenantA = Tenant::create([
         'name' => 'Alpha Agro Exports',
-        'slug' => 'alpha-agro-' . rand(1000, 9999),
+        'slug' => 'alpha-agro-'.rand(1000, 9999),
     ]);
 
     $tenantB = Tenant::create([
         'name' => 'Beta Spices Global',
-        'slug' => 'beta-spices-' . rand(1000, 9999),
+        'slug' => 'beta-spices-'.rand(1000, 9999),
     ]);
 
     // For Tenant A: First customer must be CUST-0001

@@ -1,0 +1,12 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/Actions/ProvisionTenantAction.php
+        - app/Http/Controllers/Central
+        - app/Jobs/SeedTenantDefaultsJob.php
+        - app/Models/Tenant.php
+        - app/Services/SubdomainValidator.php
+
+    level: 5

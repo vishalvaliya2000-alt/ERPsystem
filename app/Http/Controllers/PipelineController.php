@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Lead;
-use App\Models\Customer;
-use App\Models\Contact;
-use App\Models\SalesOrder;
-use App\Models\SalesOrderItem;
-use App\Models\FollowupTask;
 use App\Models\ActivityLog;
+use App\Models\Contact;
+use App\Models\Customer;
+use App\Models\FollowupTask;
+use App\Models\Lead;
 use App\Models\Product;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -36,7 +34,7 @@ class PipelineController extends Controller
                 'label' => 'New Inquiries & RFQs',
                 'description' => 'Initial buyer interest, grades & volume inquiry',
                 'icon' => '📥',
-                'color' => 'slate'
+                'color' => 'slate',
             ],
             [
                 'id' => 'SAMPLE_REQUESTED',
@@ -44,7 +42,7 @@ class PipelineController extends Controller
                 'label' => 'Sample Trials & Lab COA',
                 'description' => '100g-500g sample in transit, sensory & lab trial',
                 'icon' => '🧪',
-                'color' => 'amber'
+                'color' => 'amber',
             ],
             [
                 'id' => 'QUOTATION_SENT',
@@ -52,7 +50,7 @@ class PipelineController extends Controller
                 'label' => 'Rate Quotation & Proforma',
                 'description' => 'Formal rate per KG, GST & delivery terms submitted',
                 'icon' => '📄',
-                'color' => 'blue'
+                'color' => 'blue',
             ],
             [
                 'id' => 'NEGOTIATION',
@@ -60,7 +58,7 @@ class PipelineController extends Controller
                 'label' => 'Commercial Negotiation',
                 'description' => 'Final pricing, 30-day credit / payment terms & PO draft',
                 'icon' => '🤝',
-                'color' => 'orange'
+                'color' => 'orange',
             ],
             [
                 'id' => 'WON',
@@ -68,7 +66,7 @@ class PipelineController extends Controller
                 'label' => 'Closed Won & Customer',
                 'description' => 'Commercial PO confirmed and converted to active account',
                 'icon' => '🏆',
-                'color' => 'emerald'
+                'color' => 'emerald',
             ],
         ];
 
@@ -103,14 +101,14 @@ class PipelineController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $qtyMt = !empty($validated['quantity_mt']) ? (float) $validated['quantity_mt'] : 0;
-        $rateKg = !empty($validated['target_rate_per_kg']) ? (float) $validated['target_rate_per_kg'] : 0;
+        $qtyMt = ! empty($validated['quantity_mt']) ? (float) $validated['quantity_mt'] : 0;
+        $rateKg = ! empty($validated['target_rate_per_kg']) ? (float) $validated['target_rate_per_kg'] : 0;
 
-        $calcValue = $qtyMt > 0 && $rateKg > 0 ? ($qtyMt * 1000 * $rateKg) : (!empty($validated['estimated_value']) ? (float) $validated['estimated_value'] : 0);
+        $calcValue = $qtyMt > 0 && $rateKg > 0 ? ($qtyMt * 1000 * $rateKg) : (! empty($validated['estimated_value']) ? (float) $validated['estimated_value'] : 0);
 
         $prodDesc = $validated['product_name'] ?? 'Dehydrated Spices';
         if ($qtyMt > 0) {
-            $prodDesc = "{$qtyMt} MT {$prodDesc}" . ($rateKg > 0 ? " @ ₹{$rateKg}/KG" : "");
+            $prodDesc = "{$qtyMt} MT {$prodDesc}".($rateKg > 0 ? " @ ₹{$rateKg}/KG" : '');
         }
 
         DB::beginTransaction();
@@ -128,7 +126,7 @@ class PipelineController extends Controller
                 'stage' => $validated['stage'] ?? 'LEAD',
                 'priority' => $validated['priority'] ?? 'HIGH',
                 'next_action' => $validated['next_action'],
-                'next_action_date' => !empty($validated['next_action_date']) ? Carbon::parse($validated['next_action_date']) : Carbon::now()->addDays(2),
+                'next_action_date' => ! empty($validated['next_action_date']) ? Carbon::parse($validated['next_action_date']) : Carbon::now()->addDays(2),
                 'notes' => $validated['notes'] ?? null,
             ]);
 
@@ -138,7 +136,7 @@ class PipelineController extends Controller
                 'reason' => "Deal Follow-up: {$lead->company_name}",
                 'next_action' => $validated['next_action'],
                 'priority' => $validated['priority'] ?? 'HIGH',
-                'due_date' => !empty($validated['next_action_date']) ? Carbon::parse($validated['next_action_date']) : Carbon::now()->addDays(2),
+                'due_date' => ! empty($validated['next_action_date']) ? Carbon::parse($validated['next_action_date']) : Carbon::now()->addDays(2),
                 'status' => 'PENDING',
             ]);
 
@@ -151,14 +149,15 @@ class PipelineController extends Controller
             return back()->with('success', "Commercial prospect {$lead->company_name} registered successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Failed to register pipeline deal: ' . $e->getMessage(), [
+            Log::error('Failed to register pipeline deal: '.$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to create deal: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed to create deal: '.$e->getMessage()], 500);
             }
-            return back()->withInput()->with('error', 'Failed to register prospect: ' . $e->getMessage());
+
+            return back()->withInput()->with('error', 'Failed to register prospect: '.$e->getMessage());
         }
     }
 
@@ -201,14 +200,15 @@ class PipelineController extends Controller
             return back()->with('success', "Deal stage updated to {$newStage}");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to update stage for lead #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to update stage for lead #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to update deal stage: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed to update deal stage: '.$e->getMessage()], 500);
             }
-            return back()->with('error', 'Failed to update deal stage: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to update deal stage: '.$e->getMessage());
         }
     }
 
@@ -216,7 +216,7 @@ class PipelineController extends Controller
     {
         $lead = Lead::findOrFail($id);
 
-        $customerCode = 'CUST-' . strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $lead->company_name), 0, 4)) . '-' . rand(100, 999);
+        $customerCode = 'CUST-'.strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $lead->company_name), 0, 4)).'-'.rand(100, 999);
 
         DB::beginTransaction();
         try {
@@ -234,7 +234,7 @@ class PipelineController extends Controller
                 'stage' => 'FIRST_ORDER',
                 'health_score' => 'HEALTHY',
                 'status' => 'Active',
-                'notes' => "Converted from CRM Commercial Lead. " . ($lead->notes ?? ''),
+                'notes' => 'Converted from CRM Commercial Lead. '.($lead->notes ?? ''),
             ]);
 
             if ($lead->contact_person || $lead->phone) {
@@ -255,7 +255,7 @@ class PipelineController extends Controller
                 'customer_id' => $customer->id,
                 'activity_type' => 'DEAL_CONVERSION',
                 'title' => "🎉 Won & Converted: {$lead->company_name}",
-                'description' => "Commercial deal of " . formatINR($lead->estimated_value) . " converted into active client profile.",
+                'description' => 'Commercial deal of '.formatINR($lead->estimated_value).' converted into active client profile.',
             ]);
 
             DB::commit();
@@ -267,14 +267,15 @@ class PipelineController extends Controller
             return redirect()->route('customers.show', $lead->converted_customer_id)->with('success', "🎉 Deal Closed Won! {$lead->company_name} is now an active Customer account.");
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to convert lead #{$id} to customer: " . $e->getMessage(), [
+            Log::error("Failed to convert lead #{$id} to customer: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to convert deal to customer: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed to convert deal to customer: '.$e->getMessage()], 500);
             }
-            return back()->with('error', 'Failed to convert lead to customer: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to convert lead to customer: '.$e->getMessage());
         }
     }
 
@@ -290,9 +291,9 @@ class PipelineController extends Controller
 
         DB::beginTransaction();
         try {
-            if (!empty($validated['next_action'])) {
+            if (! empty($validated['next_action'])) {
                 $lead->next_action = $validated['next_action'];
-                if (!empty($validated['next_action_date'])) {
+                if (! empty($validated['next_action_date'])) {
                     $lead->next_action_date = Carbon::parse($validated['next_action_date']);
                 }
                 $lead->save();
@@ -301,7 +302,7 @@ class PipelineController extends Controller
                     'lead_id' => $lead->id,
                     'customer_id' => $lead->converted_customer_id,
                     'type' => 'LEAD_NURTURING',
-                    'reason' => "Communication note logged: " . substr($validated['notes'], 0, 50),
+                    'reason' => 'Communication note logged: '.substr($validated['notes'], 0, 50),
                     'next_action' => $validated['next_action'],
                     'due_date' => $lead->next_action_date ?: Carbon::now()->addDays(2),
                     'status' => 'PENDING',
@@ -313,11 +314,12 @@ class PipelineController extends Controller
             return back()->with('success', 'Communication note recorded successfully!');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Failed to log activity for lead #{$id}: " . $e->getMessage(), [
+            Log::error("Failed to log activity for lead #{$id}: ".$e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all(),
             ]);
-            return back()->with('error', 'Failed to log note: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to log note: '.$e->getMessage());
         }
     }
 }
