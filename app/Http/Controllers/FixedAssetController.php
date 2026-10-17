@@ -124,7 +124,7 @@ class FixedAssetController extends Controller
             'depreciation_date' => 'nullable|date',
         ]);
 
-        $amount = ! empty($validated['depreciation_amount']) ? (float) $validated['depreciation_amount'] : null;
+        $amount = isset($validated['depreciation_amount']) && is_numeric($validated['depreciation_amount']) ? (float) $validated['depreciation_amount'] : null;
         $date = ! empty($validated['depreciation_date']) ? Carbon::parse($validated['depreciation_date']) : now();
 
         $depRecord = $this->depreciationService->postDepreciationVoucher($asset, $amount, $date);
@@ -189,7 +189,7 @@ class FixedAssetController extends Controller
 
         $gainLossMsg = $gainOrLoss >= 0
             ? 'Gain on sale: ₹'.number_format($gainOrLoss, 2)
-            : 'Loss on sale: ₹'.number_format(abs($gainLossMsg ?? $gainOrLoss), 2);
+            : 'Loss on sale: ₹'.number_format(abs($gainOrLoss), 2);
 
         return redirect()->route('fixed-assets.index')
             ->with('success', "✓ Asset {$asset->asset_code} disposed. Proceeds: ₹".number_format($proceeds, 2).". ({$gainLossMsg})");

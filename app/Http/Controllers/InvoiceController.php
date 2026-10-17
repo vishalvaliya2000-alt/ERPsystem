@@ -358,7 +358,7 @@ class InvoiceController extends Controller
                 if ($balanceDue <= 0 && $advanceApplied > 0) {
                     $dueDate = $invDate->copy();
                 } else {
-                    $creditDays = (int) ($cust->payment_terms_days ?: 30);
+                    $creditDays = is_numeric($cust->payment_terms_days) ? (int) $cust->payment_terms_days : 30;
                     $firstOrderTerms = $order?->payment_terms ?? $linkedOrders->first()?->payment_terms;
                     if ($firstOrderTerms) {
                         if (preg_match('/(\d+)\s*(?:days?|day)/i', $firstOrderTerms, $m)) {
@@ -412,7 +412,6 @@ class InvoiceController extends Controller
                     if ($unadj > 0 && $remToApply > 0) {
                         $portion = min($unadj, $remToApply);
                         PaymentReceipt::create([
-                            'tenant_id' => $invoice->tenant_id,
                             'receipt_number' => 'ADJ-'.date('Ymd').'-'.rand(100, 999),
                             'invoice_id' => $invoice->id,
                             'sales_order_id' => $so->id,
@@ -697,7 +696,7 @@ class InvoiceController extends Controller
             }
 
             $invDate = Carbon::parse($validated['invoice_date']);
-            $dueDate = ! empty($validated['due_date']) ? Carbon::parse($validated['due_date']) : $invDate->copy()->addDays((int) ($customer->payment_terms_days ?: 30));
+            $dueDate = ! empty($validated['due_date']) ? Carbon::parse($validated['due_date']) : $invDate->copy()->addDays(is_numeric($customer->payment_terms_days) ? (int) $customer->payment_terms_days : 30);
             $status = $balanceDue <= 0 ? 'PAID' : ($advanceApplied > 0 ? 'PART_PAID' : 'ISSUED');
 
             $poNumbers = $salesOrders->pluck('order_number')->unique()->join(', ');
@@ -824,16 +823,31 @@ class InvoiceController extends Controller
         try {
             $materialSubtotal = (float) $validated['material_subtotal'];
             $freightAmount = (float) ($validated['freight_amount'] ?? 0);
-            $subtotal = $materialSubtotal + $freightAmount;
+            $taxableAmount = round($materialSubtotal + $freightAmount, 2);
+            $subtotal = $taxableAmount;
 
             $gstRate = isset($validated['gst_rate']) && $validated['gst_rate'] !== null && $validated['gst_rate'] !== '' ? (float) $validated['gst_rate'] : 5.0;
-            $gstAmount = $subtotal * ($gstRate / 100);
-            $newTotalAmount = $subtotal + $gstAmount;
+            $gstAmount = round($subtotal * ($gstRate / 100), 2);
+            $newTotalAmount = round($subtotal + $gstAmount, 2);
+
+            $cust = $invoice->customer;
+            $firm = CompanyFirmContext::getCurrentFirm();
+            $firmStateCode = $firm?->state_code ?? '24';
+            $customerStateCode = $cust?->state_code ?? '24';
+            $isIntraState = ($firmStateCode === $customerStateCode);
+
+            if ($isIntraState) {
+                $cgstAmount = round($gstAmount / 2, 2);
+                $sgstAmount = round($gstAmount - $cgstAmount, 2);
+                $igstAmount = 0.0;
+            } else {
+                $cgstAmount = 0.0;
+                $sgstAmount = 0.0;
+                $igstAmount = $gstAmount;
+            }
 
             $oldTotalAmount = (float) $invoice->total_amount;
             $difference = $newTotalAmount - $oldTotalAmount;
-
-            $cust = $invoice->customer;
 
             $invoice->update([
                 'invoice_number' => $validated['invoice_number'],
@@ -841,8 +855,12 @@ class InvoiceController extends Controller
                 'due_date' => ! empty($validated['due_date']) ? Carbon::parse($validated['due_date']) : $invoice->due_date,
                 'material_subtotal' => $materialSubtotal,
                 'freight_amount' => $freightAmount,
+                'taxable_amount' => $taxableAmount,
                 'subtotal' => $subtotal,
                 'gst_amount' => $gstAmount,
+                'cgst_amount' => $cgstAmount,
+                'sgst_amount' => $sgstAmount,
+                'igst_amount' => $igstAmount,
                 'total_amount' => $newTotalAmount,
                 'balance_due' => $newTotalAmount,
                 'notes' => $validated['notes'] ?? null,

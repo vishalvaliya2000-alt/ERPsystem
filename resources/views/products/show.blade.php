@@ -86,7 +86,7 @@
                 <div class="text-right">
                     <span class="text-[10px] text-neutral-400 block font-bold uppercase tracking-wider">Reference Market Rate</span>
                     <span class="text-xl font-black text-neutral-900 font-display">₹{{ number_format($product->standard_rate ?: $product->current_rate_per_kg, 2) }}</span>
-                    <span class="text-[11px] text-neutral-400 block font-mono">/ KG (GST {{ number_format($product->tax_rate_percent, 0) }}%)</span>
+                    <span class="text-[11px] text-neutral-400 block font-mono">/ KG (GST {{ rtrim(rtrim(number_format((float) ($product->tax_rate ?? $product->tax_rate_percent ?? 5), 2), '0'), '.') }}%)</span>
                 </div>
             </div>
         </div>

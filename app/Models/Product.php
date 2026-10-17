@@ -22,6 +22,7 @@ class Product extends Model
         'standard_rate',
         'standard_cost',
         'hsn_code',
+        'tax_rate',
         'min_order_qty',
         'packaging',
         'specification_url',
@@ -32,13 +33,19 @@ class Product extends Model
     protected $casts = [
         'standard_rate' => 'decimal:2',
         'standard_cost' => 'decimal:2',
+        'tax_rate' => 'decimal:2',
         'min_order_qty' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 
     public function getTaxRatePercentAttribute(): float
     {
-        return 5.00;
+        return $this->tax_rate !== null ? (float) $this->tax_rate : 5.00;
+    }
+
+    public function setTaxRatePercentAttribute($value): void
+    {
+        $this->attributes['tax_rate'] = ($value !== null && $value !== '') ? (float) $value : 5.00;
     }
 
     // Accessor / Mutator Aliases for smooth UI compatibility
@@ -147,6 +154,7 @@ class Product extends Model
             'has_coa' => $hasCoa,
             'coa_expired' => $coaExpired,
             'has_spec' => $hasSpec,
+            'has_specification' => $hasSpec,
             'has_msds' => $hasMsds,
             'other_count' => $otherCount,
             'has_other' => $otherCount > 0,

@@ -27,6 +27,7 @@ return new class extends Migration
             $table->decimal('standard_rate', 12, 2)->default(0);
             $table->decimal('standard_cost', 12, 2)->default(0); // Cost price for margin/profit calculation
             $table->string('hsn_code')->default('07129090');
+            $table->decimal('tax_rate', 5, 2)->default(5.00);
             $table->decimal('min_order_qty', 12, 2)->default(50);
             $table->string('packaging')->default('25 KG Bag / Carton');
             $table->string('specification_url')->nullable();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Product;
+use App\Services\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +42,7 @@ class BulkItemUpdateController extends Controller
                 'standard_rate',
                 'standard_cost',
                 'hsn_code',
+                'tax_rate',
                 'packaging',
                 'min_order_qty',
                 'is_active',
@@ -53,6 +55,7 @@ class BulkItemUpdateController extends Controller
                     $p->standard_rate,
                     $p->standard_cost,
                     $p->hsn_code,
+                    $p->tax_rate ?? 5.00,
                     $p->packaging,
                     $p->min_order_qty,
                     $p->is_active ? '1' : '0',
@@ -163,6 +166,16 @@ class BulkItemUpdateController extends Controller
                 }
             }
 
+            // Compare Tax Rate
+            if (isset($rowData['tax_rate']) && is_numeric($rowData['tax_rate'])) {
+                $newTax = round((float) $rowData['tax_rate'], 2);
+                $oldTax = (float) ($product->tax_rate ?? 5.00);
+                if (abs($newTax - $oldTax) > 0.001) {
+                    $rowDiff['diffs']['tax_rate'] = ['old' => $oldTax, 'new' => $newTax];
+                    $rowDiff['new_values']['tax_rate'] = $newTax;
+                }
+            }
+
             if (! empty($rowDiff['diffs'])) {
                 $changes[] = $rowDiff;
             } else {
@@ -212,7 +225,7 @@ class BulkItemUpdateController extends Controller
                 }
 
                 ActivityLog::create([
-                    'tenant_id' => $product->tenant_id,
+                    'tenant_id' => TenantManager::getTenantId(),
                     'activity_type' => 'NOTE',
                     'title' => "Bulk Item Updated ({$product->product_code})",
                     'description' => 'Updated '.implode(', ', $diffDescriptions).' via CSV bulk upload.',
@@ -254,6 +267,7 @@ class BulkItemUpdateController extends Controller
             'products.*.standard_cost' => 'nullable|numeric|min:0',
             'products.*.hsn_code' => 'nullable|string|max:20',
             'products.*.min_order_qty' => 'nullable|numeric|min:0',
+            'products.*.tax_rate' => 'nullable|numeric|min:0',
             'products.*.packaging' => 'nullable|string|max:100',
         ]);
 
@@ -267,6 +281,7 @@ class BulkItemUpdateController extends Controller
                         'standard_rate' => $pData['standard_rate'] ?? $product->standard_rate,
                         'standard_cost' => $pData['standard_cost'] ?? $product->standard_cost,
                         'hsn_code' => $pData['hsn_code'] ?? $product->hsn_code,
+                        'tax_rate' => isset($pData['tax_rate']) && is_numeric($pData['tax_rate']) ? (float) $pData['tax_rate'] : ($product->tax_rate ?? 5.00),
                         'min_order_qty' => $pData['min_order_qty'] ?? $product->min_order_qty,
                         'packaging' => $pData['packaging'] ?? $product->packaging,
                     ]);

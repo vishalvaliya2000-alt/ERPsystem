@@ -67,12 +67,17 @@ class CustomerController extends Controller
             'legal_name' => 'nullable|string|max:255',
             'trade_name' => 'nullable|string|max:255',
             'gst_number' => 'nullable|string|max:20',
+            'pan_number' => 'nullable|string|max:20',
             'primary_contact_person' => 'nullable|string|max:255',
             'primary_phone' => 'nullable|string|max:30',
             'primary_email' => 'nullable|email|max:255',
+            'address_line' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:100',
             'state' => 'nullable|string|max:100',
-            'payment_terms_days' => 'nullable|integer',
+            'pincode' => 'nullable|string|max:20',
+            'credit_limit' => 'nullable|numeric|min:0',
+            'credit_limit_action' => 'nullable|string|in:WARN,BLOCK',
+            'payment_terms_days' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
         ]);
 
@@ -117,18 +122,26 @@ class CustomerController extends Controller
 
         DB::beginTransaction();
         try {
+            $creditLimit = isset($validated['credit_limit']) && is_numeric($validated['credit_limit']) ? (float) $validated['credit_limit'] : 0.00;
+            $creditAction = ! empty($validated['credit_limit_action']) ? $validated['credit_limit_action'] : 'WARN';
+            $paymentTerms = isset($validated['payment_terms_days']) && is_numeric($validated['payment_terms_days']) ? (int) $validated['payment_terms_days'] : 30;
+
             $customer = Customer::create([
-                'tenant_id' => $tenantId,
                 'customer_code' => $code,
                 'company_name' => $legalName,
                 'trade_name' => $tradeName,
                 'gst_number' => $validated['gst_number'] ?? null,
+                'pan_number' => $validated['pan_number'] ?? null,
                 'primary_contact_person' => $validated['primary_contact_person'] ?? null,
                 'primary_phone' => $validated['primary_phone'] ?? null,
                 'primary_email' => $validated['primary_email'] ?? null,
+                'address_line' => $validated['address_line'] ?? null,
                 'city' => $validated['city'] ?? null,
                 'state' => $validated['state'] ?? 'Gujarat',
-                'payment_terms_days' => $validated['payment_terms_days'] ?? 30,
+                'pincode' => $validated['pincode'] ?? null,
+                'credit_limit' => $creditLimit,
+                'credit_limit_action' => $creditAction,
+                'payment_terms_days' => $paymentTerms,
                 'notes' => $validated['notes'] ?? null,
                 'stage' => 'ACTIVE',
             ]);
@@ -166,18 +179,32 @@ class CustomerController extends Controller
             'legal_name' => 'nullable|string|max:255',
             'trade_name' => 'nullable|string|max:255',
             'gst_number' => 'nullable|string|max:20',
+            'pan_number' => 'nullable|string|max:20',
             'primary_contact_person' => 'nullable|string|max:255',
             'primary_phone' => 'nullable|string|max:30',
             'primary_email' => 'nullable|email|max:255',
+            'address_line' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:100',
             'state' => 'nullable|string|max:100',
-            'payment_terms_days' => 'nullable|integer',
+            'pincode' => 'nullable|string|max:20',
+            'payment_terms_days' => 'nullable|integer|min:0',
+            'credit_limit' => 'nullable|numeric|min:0',
+            'credit_limit_action' => 'nullable|string|in:WARN,BLOCK',
             'stage' => 'nullable|string|max:50',
+            'notes' => 'nullable|string',
         ]);
 
         if (! empty($validated['legal_name'])) {
             $validated['company_name'] = $validated['legal_name'];
             unset($validated['legal_name']);
+        }
+
+        if (array_key_exists('payment_terms_days', $validated) && $validated['payment_terms_days'] !== null && is_numeric($validated['payment_terms_days'])) {
+            $validated['payment_terms_days'] = (int) $validated['payment_terms_days'];
+        }
+
+        if (array_key_exists('credit_limit', $validated) && $validated['credit_limit'] !== null && is_numeric($validated['credit_limit'])) {
+            $validated['credit_limit'] = (float) $validated['credit_limit'];
         }
 
         DB::beginTransaction();

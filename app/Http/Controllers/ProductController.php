@@ -319,7 +319,7 @@ class ProductController extends Controller
         $code = ! empty($validated['product_code']) ? strtoupper(trim($validated['product_code'])) : $this->generateStandardSku($validated['product_name']);
         $rate = $validated['current_rate_per_kg'] ?? ($validated['standard_rate'] ?? 0);
         $pack = $validated['default_packaging'] ?? ($validated['packaging'] ?? '20 KGs Two Poly Liner Bags with Laminated Paper Bag');
-        $tax = ! empty($validated['tax_rate_percent']) ? (float) $validated['tax_rate_percent'] : 5.00;
+        $tax = isset($validated['tax_rate_percent']) && is_numeric($validated['tax_rate_percent']) ? (float) $validated['tax_rate_percent'] : 5.00;
 
         DB::beginTransaction();
         try {
@@ -386,7 +386,9 @@ class ProductController extends Controller
         $code = ! empty($validated['product_code']) ? strtoupper(trim($validated['product_code'])) : $product->product_code;
         $rate = $validated['current_rate_per_kg'] ?? ($validated['standard_rate'] ?? $product->standard_rate);
         $pack = $validated['default_packaging'] ?? ($validated['packaging'] ?? $product->packaging);
-        $tax = ! empty($validated['tax_rate_percent']) ? (float) $validated['tax_rate_percent'] : ($product->tax_rate ?: 5.00);
+        $tax = isset($validated['tax_rate_percent']) && is_numeric($validated['tax_rate_percent'])
+            ? (float) $validated['tax_rate_percent']
+            : ($product->tax_rate !== null ? (float) $product->tax_rate : 5.00);
 
         DB::beginTransaction();
         try {

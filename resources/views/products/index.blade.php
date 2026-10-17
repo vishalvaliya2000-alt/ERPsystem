@@ -131,8 +131,11 @@
                             <span class="text-[10px] text-slate-400 font-normal block">Base Rate</span>
                         </td>
                         <td class="p-3.5 text-center">
-                            <span class="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                                {{ number_format($prod->tax_rate_percent > 0 ? $prod->tax_rate_percent : 0, 0) }}%
+                            @php
+                                $displayTax = (float) ($prod->tax_rate ?? $prod->tax_rate_percent ?? 5);
+                            @endphp
+                            <span class="px-2.5 py-0.5 rounded-md font-bold text-[11px] {{ $displayTax == 0 ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-emerald-100 text-emerald-800' }}">
+                                {{ rtrim(rtrim(number_format($displayTax, 2), '0'), '.') }}%
                             </span>
                         </td>
 
@@ -1142,7 +1145,7 @@ function productsManager() {
                 product_code: prod.product_code,
                 hsn_code: prod.hsn_code || '07129090',
                 standard_rate: prod.standard_rate || prod.current_rate_per_kg || '',
-                tax_rate_percent: prod.tax_rate_percent || '5.00',
+                tax_rate_percent: (prod.tax_rate !== null && prod.tax_rate !== undefined) ? prod.tax_rate : ((prod.tax_rate_percent !== null && prod.tax_rate_percent !== undefined) ? prod.tax_rate_percent : '5.00'),
                 packaging: prod.packaging || prod.default_packaging || '20 KGs Two Poly Liner Bags with Laminated Paper Bag'
             };
             this.activeEditTab = tab;

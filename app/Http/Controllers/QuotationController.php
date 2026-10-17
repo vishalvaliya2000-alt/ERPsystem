@@ -56,11 +56,16 @@ class QuotationController extends Controller
         ]);
 
         $subtotal = 0;
+        $taxAmount = 0;
         foreach ($validated['items'] as $it) {
-            $subtotal += ($it['quantity'] * $it['rate']);
+            $lineSubtotal = ((float) $it['quantity'] * (float) $it['rate']);
+            $subtotal += $lineSubtotal;
+            $prod = Product::find($it['product_id']);
+            $ratePercent = $prod ? (float) ($prod->tax_rate ?? $prod->tax_rate_percent ?? 5.0) : 5.0;
+            $taxAmount += round($lineSubtotal * ($ratePercent / 100), 2);
         }
-        $taxAmount = $subtotal * 0.05;
-        $totalAmount = $subtotal + $taxAmount;
+        $taxAmount = round($taxAmount, 2);
+        $totalAmount = round($subtotal + $taxAmount, 2);
 
         $tenant = TenantManager::getTenant();
         $prefix = $tenant ? $tenant->quotation_prefix : 'QUO';
@@ -183,7 +188,7 @@ class QuotationController extends Controller
         DB::beginTransaction();
         try {
             $order = SalesOrder::create([
-                'tenant_id' => $tenantId,
+                'firm_id' => CompanyFirmContext::getCurrentFirmId() ?? $quotation->firm_id,
                 'order_number' => $orderNo,
                 'po_number' => 'PO-'.$quotation->quotation_number,
                 'po_date' => Carbon::today(),
@@ -200,7 +205,6 @@ class QuotationController extends Controller
 
             foreach ($quotation->items as $it) {
                 SalesOrderItem::create([
-                    'tenant_id' => $tenantId,
                     'sales_order_id' => $order->id,
                     'product_id' => $it->product_id,
                     'order_qty' => $it->quantity,
